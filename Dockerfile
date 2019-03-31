@@ -13,6 +13,4 @@ ENV PORT 3000
 
 EXPOSE 3000
 
-RUN npm run build
-
 CMD ["pm2-runtime", "start.js", "i", "2"]
