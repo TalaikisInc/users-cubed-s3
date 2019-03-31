@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 APP=$1

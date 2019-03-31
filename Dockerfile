@@ -1,5 +1,6 @@
 FROM keymetrics/pm2:latest-alpine
 
+RUN apk update && apk upgrade && apk add --no-cache git
 RUN npm i -g pm2
 
 WORKDIR /opt
