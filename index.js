@@ -12,7 +12,12 @@ const port = config.port
 const app = {}
 
 app.init = () => {
-  App().post('/', (res, req) => {
+  App().get('/', (res, req) => {
+    res.writeStatus('200 OK.')
+    res.writeHeader('Content-Type', 'application/json')
+    res.end(JSON.stringify({ status: 'Running.' }))
+  })
+  .post('/api', (res, req) => {
     const authorization = req.getHeader('authorization')
     json(res, (payload) => {
       payload = typeof payload === 'string' ? querystring.parse(payload) : payload
