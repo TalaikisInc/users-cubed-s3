@@ -41,7 +41,14 @@ export const create = (data, done) => {
                     role: userData.role,
                     email: u.email
                   }
-                  finalizeRequest('tokens', tokenId, 'create', done, tokenObj)
+
+                  dataLib.create('tokens', tokenId, tokenObj, (err, res) => {
+                    if (!err) {
+                      done(200, { token: tokenId })
+                    } else {
+                      done(500, { error: 'Could not create token.' })
+                    }
+                  })
                 } else {
                   done(400, { error: 'Cannot get unique ID.' })
                 }
