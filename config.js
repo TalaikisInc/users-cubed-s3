@@ -32,5 +32,6 @@ export default {
   },
   tokenExpiry: 60 * 60,
   mainConfirm: 'email',
-  baseUrl: 'http://localhost:3000/'
+  baseUrl: 'http://localhost:3000/',
+  social: {}
 }

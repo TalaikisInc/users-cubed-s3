@@ -1,4 +1,3 @@
-import log from '../../lib/debug/log'
 import error from '../../lib/debug/error'
 import config from '../../config'
 import dataLib from '../../lib/data/functions'

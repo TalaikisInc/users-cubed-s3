@@ -170,7 +170,7 @@ export const edit = (data, done) => {
   const u = userObj(data)
 
   if (u && u.email) {
-    if (u.firstName || u.lastName || u.password || u.email) {
+    if (u.firstName || u.lastName || u.password) {
       auth(data, (tokenData) => {
         if (tokenData) {
           dataLib.read('users', u.email, (err, userData) => {
