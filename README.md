@@ -20,6 +20,7 @@ This is full user management service API. as [original version](https://github.c
 * Data caching?
 * Penetration testing
 * Finish i18n
+* Role system
 
 ## Install
 

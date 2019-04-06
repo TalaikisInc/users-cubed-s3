@@ -94,9 +94,9 @@ const createUser = (obj, done) => {
     if (hashedPassword) {
       const now = Date.now()
       const newObj = {
-        firstName: obj.firstName,
-        lastName: obj.lastName,
-        phone: obj.phone,
+        firstName: obj.firstName ? obj.firstName : '',
+        lastName: obj.lastName ? obj.lastName : '',
+        phone: obj.phone ? obj.phone : '',
         email: obj.email,
         tosAgreement: obj.tosAgreement,
         password: hashedPassword,
@@ -147,7 +147,7 @@ const createUser = (obj, done) => {
 export const create = (data, done) => {
   const u = userObj(data)
 
-  if (u.firstName && u.lastName && u.email && u.password && u.tosAgreement) {
+  if (u.email && u.password && u.tosAgreement) {
     dataLib.read('users', u.email, (err, _) => {
       if (err) {
         createUser(u, (err) => {
