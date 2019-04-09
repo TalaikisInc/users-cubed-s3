@@ -38,7 +38,7 @@ npm run start
 
 ## Requirements
 
-* Passwords > 12 chars
+* Passwords > 11 chars
 
 ## Routes
 

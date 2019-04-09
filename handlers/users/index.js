@@ -152,7 +152,7 @@ export const create = (data, done) => {
       if (err) {
         createUser(u, (err) => {
           if (!err) {
-            done(200)
+            done(200, { status: t('ok') })
           } else {
             done(500, { error: err })
           }
@@ -254,7 +254,7 @@ export const destroy = (data, done) => {
                 if (err) {
                   error(err)
                 } else {
-                  done(200)
+                  done(200, { status: t('ok') })
                 }
               })
             } else {

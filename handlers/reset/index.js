@@ -4,6 +4,7 @@ import userObj from '../../lib/data/userObj'
 import randomID from '../../lib/security/randomID'
 import sendEmail from '../../lib/email'
 import sendSMS from '../../lib/phone'
+import t from '../../lib/translations'
 
 const sendEmailReset = (email, done) => {
   randomID(32, (code) => {
@@ -93,7 +94,7 @@ export default (data, done) => {
       if (!err && userData) {
         sendReset(u.email, userData.phone, (err) => {
           if (!err.error) {
-            done(200)
+            done(200, { status: t('ok') })
           } else {
             done(500, { error: `Cannot send email: ${err.error}` })
           }
