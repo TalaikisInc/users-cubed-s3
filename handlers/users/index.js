@@ -15,7 +15,7 @@ import t from '../../lib/translations'
 const sendEmailConfirmation = (email, done) => {
   randomID(32, (code) => {
     if (code) {
-      const subject = t('account_confirm_subject')
+      const subject = t('account_confirm_subject', { company: config.company })
       const msg = t('account_confirm_message', { company: config.company, baseUrl: config.baseUrl, code: code })
       const obj = {
         email,

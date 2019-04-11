@@ -27,6 +27,7 @@ This is full user management service API. as [original version](https://github.c
 ```bash
 npm i
 amplify init
+amplify add storage
 ```
 
 ## Run

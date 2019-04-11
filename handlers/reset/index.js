@@ -9,8 +9,9 @@ import t from '../../lib/translations'
 const sendEmailReset = (email, done) => {
   randomID(32, (code) => {
     if (code) {
-      const subject = 'Please confirm your password reset'
-      const msg = `Click here to confirm password reset: <a href="${config.baseUrl}?token=${code}">${code}</a>`
+      const subject = `Please confirm your password reset for ${config.company}`
+      const msg = `Click here to confirm password reset:
+        <h4><a href="${config.baseUrl}confirm-reset/${code}">${code}</a></h4>`
       const obj = {
         email,
         type: 'reset',
@@ -96,7 +97,7 @@ export default (data, done) => {
           if (!err.error) {
             done(200, { status: t('ok') })
           } else {
-            done(500, { error: `Cannot send email: ${err.error}` })
+            done(500, { error: `Cannot send password reset email: ${err.error}` })
           }
         })
       } else {

@@ -15,8 +15,9 @@ const token = (data) => {
 }
 
 const sendNewPassword = (email, password, done) => {
-  const subject = 'Your new password'
-  const msg = `Your new password for ${config.company}: ${password}`
+  const subject = `Your new password for ${config.company}`
+  const msg = `Your new password for <a href="${config.baseUrl}">${config.company}</a>:
+    <h4>${password}</h4>`
   sendEmail(email, subject, msg, (err) => {
     if (!err.error) {
       done(false)
