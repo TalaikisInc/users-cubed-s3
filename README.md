@@ -28,6 +28,7 @@ This is full user management service API. as [original version](https://github.c
 npm i
 amplify init
 amplify add storage
+amplify push
 ```
 
 ## Run
