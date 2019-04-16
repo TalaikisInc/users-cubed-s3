@@ -75,7 +75,7 @@ const sendPhoneConfirmation = (phone, email, done) => {
 export const get = (data, done) => {
   auth(data, (tokenData) => {
     if (tokenData) {
-      dataLib.read('users', data.payload.email, (err, userData) => {
+      dataLib.read('users', tokenData.email, (err, userData) => {
         if (!err && userData) {
           delete userData.password
           done(200, userData)
@@ -212,14 +212,38 @@ export const edit = (data, done) => {
                     if (hashed) {
                       userData.password = hashed
                       userData.updatedAt = Date.now()
-                      finalizeRequest('users', u.email, 'update', done, userData)
+                      dataLib.update('users', u.email, userData, (err) => {
+                        if (!err) {
+                          dataLib.read('users', u.email, (err, userData) => {
+                            if (!err && userData) {
+                              done(200, userData)
+                            } else {
+                              done(500, { error: 'Cannot read user.' })
+                            }
+                          })
+                        } else {
+                          done(500, { error: 'Cannot update user.' })
+                        }
+                      })
                     } else {
                       done(500, { error: t('error_hash') })
                     }
                   })
                 } else {
                   userData.updatedAt = Date.now()
-                  finalizeRequest('users', u.email, 'update', done, userData)
+                  ataLib.update('users', u.email, userData, (err) => {
+                    if (!err) {
+                      dataLib.read('users', u.email, (err, userData) => {
+                        if (!err && userData) {
+                          done(200, userData)
+                        } else {
+                          done(500, { error: 'Cannot read user.' })
+                        }
+                      })
+                    } else {
+                      done(500, { error: 'Cannot update user.' })
+                    }
+                  })
                 }
               } else {
                 done(400, { error: t('error_confirmed') })

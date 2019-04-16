@@ -13,7 +13,6 @@ This is full user management service API. as [original version](https://github.c
 
 ## TODO
 
-* Tests
 * Finish phome confirm
 * Logs
 * Move into async/await
@@ -21,6 +20,8 @@ This is full user management service API. as [original version](https://github.c
 * Penetration testing
 * Finish i18n
 * Role system
+* Tests
+* Cleanup for left data in S3
 
 ## Install
 
