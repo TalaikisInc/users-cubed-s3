@@ -96,14 +96,18 @@ const createUser = (obj, done) => {
       const newObj = {
         firstName: obj.firstName ? obj.firstName : '',
         lastName: obj.lastName ? obj.lastName : '',
+        dialCoode: obj.dialCode,
         phone: obj.phone ? obj.phone : '',
         email: obj.email,
         tosAgreement: obj.tosAgreement,
         password: hashedPassword,
         referred: [],
         address: obj.address,
+        zipCode: obj.zipCodev,
         city: obj.city,
         country: obj.country,
+        dob: obj.dob,
+        avatarUrl: bj.avatarUrl,
         confirmed: {
           email: false,
           phone: false
@@ -196,6 +200,22 @@ export const edit = (data, done) => {
                   userData.lastName = u.lastName
                 }
 
+                if (u.avatarUrl !== userData.avatarUrl) {
+                  userData.avatarUrl = u.avatarUrl
+                }
+
+                if (u.dob !== userData.dob) {
+                  userData.dob = u.dob
+                }
+
+                if (u.zipCode !== userData.zipCode) {
+                  userData.zipCode = u.zipCode
+                }
+
+                if (u.dialCode !== userData.dialCode) {
+                  userData.dialCode = u.dialCode
+                }
+
                 if (u.email !== userData.email) {
                   data.email = u.email
                   sendEmailConfirmation(u.email, (err) => {
@@ -207,7 +227,7 @@ export const edit = (data, done) => {
                   })
                 }
 
-                if (u.password) {
+                if (u.password) { // this is already checked
                   hash(u.password, (hashed) => {
                     if (hashed) {
                       userData.password = hashed
