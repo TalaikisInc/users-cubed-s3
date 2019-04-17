@@ -1,5 +1,4 @@
 import joinDelete from '../../lib/data/joinDelete'
-import finalizeRequest from '../../lib/data/finalizeRequest'
 import dataLib from '../../lib/data/functions'
 import userObj from '../../lib/data/userObj'
 import hash from '../../lib/security/hash'
