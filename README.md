@@ -13,7 +13,7 @@ This is full user management service API. as [original version](https://github.c
 
 ## TODO
 
-* Finish phome confirm
+* Finish phone confirm
 * Logs
 * Move into async/await
 * Response caching
@@ -22,6 +22,7 @@ This is full user management service API. as [original version](https://github.c
 * Role system
 * Tests
 * Cleanup for old data in S3
+* Move to Lambda (?)
 
 ## Install
 
