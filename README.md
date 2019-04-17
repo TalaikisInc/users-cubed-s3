@@ -13,7 +13,12 @@ This is full user management service API. as [original version](https://github.c
 
 ## TODO
 
+* add zip code
+* add country code checker
 * Finish phome confirm
+* add DOB
+* improve phone (from frontend now is tel-country-code, tel-national)
+* add avatar/ images (tied to upload-service-s3)
 * Logs
 * Move into async/await
 * Data caching?

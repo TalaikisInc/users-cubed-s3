@@ -25,7 +25,7 @@ export default {
     domainName: process.env.MAILGUN_DOMAIN,
     apiKey: process.env.MAILGUN_KEY
   },
-  workers: {
+  workers: { // in seconds
     tokenClean: 60 * 60,
     logRotate: 60 * 60 * 24,
     unconfirmedClean: 60 * 60 * 3
