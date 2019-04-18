@@ -1,3 +1,5 @@
+import { Validator } from 'jsonschema'
+
 import error from '../../lib/debug/error'
 import config from '../../config'
 import dataLib from '../../lib/data/functions'
@@ -5,6 +7,8 @@ import finalizeRequest from '../../lib/data/finalizeRequest'
 import hash from '../../lib/security/hash'
 import randomID from '../../lib/security/randomID'
 import sendEmail from '../../lib/email'
+import { schema } from './schema'
+const v = new Validator()
 
 const token = (data) => {
   if (typeof data.payload === 'object') {
@@ -16,7 +20,7 @@ const token = (data) => {
 
 const sendNewPassword = (email, password, done) => {
   const subject = `Your new password for ${config.company}`
-  const msg = `Your new password for <a href="${config.baseUrl}">${config.company}</a>:
+  const msg = `Your new password for <a href='${config.baseUrl}'>${config.company}</a>:
     <h4>${password}</h4>`
   sendEmail(email, subject, msg, (err) => {
     if (!err.error) {
@@ -28,6 +32,7 @@ const sendNewPassword = (email, password, done) => {
 }
 
 export default (data, done) => {
+  console.log(v.validate(instance, schema))
   const id = token(data)
   if (id) {
     dataLib.read('confirms', id, (err, tokenData) => {

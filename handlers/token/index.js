@@ -1,9 +1,13 @@
+import { Validator } from 'jsonschema'
+
 import randomID from '../../lib/security/randomID'
 import config from '../../config'
 import dataLib from '../../lib/data/functions'
 import userObj from '../../lib/data/userObj'
 import hash from '../../lib/security/hash'
 import finalizeRequest from '../../lib/data/finalizeRequest'
+import { createSchema } from './schema'
+const v = new Validator()
 
 const valid = (data) => {
   return typeof data.payload.tokenId === 'string' && data.payload.tokenId.trim().length === 64 ? data.payload.tokenId.trim() : false
@@ -24,6 +28,8 @@ export const get = (data, done) => {
 }
 
 export const create = (data, done) => {
+  console.log('v.validate(data, createSchema)')
+  console.log(v.validate(data, createSchema))
   const u = userObj(data)
 
   if ((u.email && u.password) || (u.phone && u.password)) {

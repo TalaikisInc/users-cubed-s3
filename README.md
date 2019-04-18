@@ -14,11 +14,11 @@ This is full user management service API. as [original version](https://github.c
 ## TODO
 
 * Finish phone confirm
-* Logs
-* Move into async/await
-* Response caching
-* Penetration testing
+* Finish json validators
 * Finish i18n
+* Move into async/await (?)
+* Response caching (?)
+* Penetration testing
 * Role system
 * Tests
 * Cleanup for old data in S3
