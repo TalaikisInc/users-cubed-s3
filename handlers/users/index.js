@@ -8,6 +8,7 @@ import joinDelete from '../../lib/data/joinDelete'
 import dataLib from '../../lib/data/functions'
 import userObj from '../../lib/data/userObj'
 import loose from '../../lib/data/loose'
+import validEmail from '../../lib/data/validEmail'
 import hash from '../../lib/security/hash'
 import config from '../../config'
 import randomID from '../../lib/security/randomID'
@@ -220,8 +221,10 @@ const editFields = (u, userData, done) => {
     userData.dialCode = u.dialCode
   }
 
-  // @TODO this requires additional validaiton here, because there is chance someone can set email that is not an email
   if (u.email !== userData.email) {
+    validEmail(u.email, () => {
+
+    })
     userData.email = u.email
     sendEmailConfirmation(u.email, (err) => {
       if (!err) {
