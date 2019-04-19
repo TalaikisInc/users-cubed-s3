@@ -222,15 +222,16 @@ const editFields = (u, userData, done) => {
   }
 
   if (u.email !== userData.email) {
-    validEmail(u.email, () => {
-
-    })
-    userData.email = u.email
-    sendEmailConfirmation(u.email, (err) => {
-      if (!err) {
-        log('Email sent.')
-      } else {
-        error(err)
+    validEmail(u.email, (email) => {
+      if (email) {
+        userData.email = u.email
+        sendEmailConfirmation(u.email, (err) => {
+          if (!err) {
+            log('Email sent.')
+          } else {
+            error(err)
+          }
+        })
       }
     })
   }
