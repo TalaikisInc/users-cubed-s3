@@ -4,7 +4,7 @@ import userObj from '../../lib/data/userObj'
 import randomID from '../../lib/security/randomID'
 import sendEmail from '../../lib/email'
 import sendSMS from '../../lib/phone'
-import t from '../../lib/translations'
+import { t, setLocale } from '../../lib/translations'
 
 const sendEmailReset = (email, done) => {
   randomID(32, (code) => {
@@ -89,22 +89,27 @@ const sendReset = (email, phone, done) => {
 }
 
 export default (data, done) => {
-  const u = userObj(data)
-  if (u.email) {
-    dataLib.read('users', u.email, (err, userData) => {
-      if (!err && userData) {
-        sendReset(u.email, userData.phone, (err) => {
-          if (!err.error) {
-            done(200, { status: t('ok') })
+  userObj(data, (u) => {
+    if (u) {
+      if (u.email) {
+        dataLib.read('users', u.email, (err, userData) => {
+          if (!err && userData) {
+            sendReset(u.email, userData.phone, (err) => {
+              if (!err.error) {
+                done(200, { status: t('ok') })
+              } else {
+                done(500, { error: `Cannot send password reset email: ${err.error}` })
+              }
+            })
           } else {
-            done(500, { error: `Cannot send password reset email: ${err.error}` })
+            done(400, { error: 'No such user.' })
           }
         })
       } else {
-        done(400, { error: 'No such user.' })
+        done(400, { error: 'Not all required fields provided.' })
       }
-    })
-  } else {
-    done(400, { error: 'Not all required fields provided.' })
-  }
+    } else {
+      done(400, { error: 'No data.' })
+    }
+  })
 }

@@ -45,40 +45,46 @@ const sendReferEmail = (email, token, referringUser, done) => {
   * @return bool - success or failure with optional error object
 */
 export const refer = (data, done) => {
-  const authToken = tokenHeader(data)
-  if (authToken) {
-    const u = userObj(data)
-    const refEmail = typeof data.payload.to === 'string' && data.payload.to.indexOf('@') > -1 ? data.payload.to.trim() : false
-    if (u.email && refEmail) {
-      dataLib.read('users', u.email, (err, userData) => {
-        if (!err && data) {
-          generateToken(u.email, (err, refToken) => {
-            if (!err) {
-              userData.referred.push(refToken)
-              userData.updatedAt = Date.now()
-
-              const referringUser = `${userData.firstName} ${userData.lastName} <${userData.email}>`
-              sendReferEmail(refEmail, refToken, referringUser, (err) => {
-                if (!err) {
-                  finalizeRequest('users', u.phone, 'update', done, userData)
-                } else {
-                  done(400, { error: `Cannot send referral email: ${err}` })
-                }
-              })
-            } else {
-              done(400, { error: `Cannot generate token: ${refToken}` })
-            }
-          })
+  tokenHeader(data, (authToken) => {
+    if (authToken) {
+      userObj(data, (u) => {
+        if (u) {
+          const refEmail = typeof data.payload.to === 'string' && data.payload.to.indexOf('@') > -1 ? data.payload.to.trim() : false
+          if (u.email && refEmail) {
+            dataLib.read('users', u.email, (err, userData) => {
+              if (!err && data) {
+                generateToken(u.email, (err, refToken) => {
+                  if (!err) {
+                    userData.referred.push(refToken)
+                    userData.updatedAt = Date.now()
+      
+                    const referringUser = `${userData.firstName} ${userData.lastName} <${userData.email}>`
+                    sendReferEmail(refEmail, refToken, referringUser, (err) => {
+                      if (!err) {
+                        finalizeRequest('users', u.phone, 'update', done, userData)
+                      } else {
+                        done(400, { error: `Cannot send referral email: ${err}` })
+                      }
+                    })
+                  } else {
+                    done(400, { error: `Cannot generate token: ${refToken}` })
+                  }
+                })
+              } else {
+                done(400, { error: 'No such user.' })
+              }
+            })
+          } else {
+            done(400, { error: 'Not all data is provided.' })
+          }
         } else {
-          done(400, { error: 'No such user.' })
+          done(400, { error: 'No date provided.' })
         }
       })
     } else {
-      done(400, { error: 'Not all data is provided.' })
+      done(403, { error: 'Wrong token provided.' })
     }
-  } else {
-    done(403, { error: 'Wrong token provided.' })
-  }
+  })
 }
 
 /**

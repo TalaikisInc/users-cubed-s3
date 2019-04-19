@@ -32,6 +32,12 @@ export default {
   },
   tokenExpiry: 60 * 60,
   mainConfirm: 'email',
-  baseUrl: 'https://ufunc.com/',
-  social: {}
+  baseUrl: 'https://ufunc.com/'
 }
+
+export const FACEBOOK_CLIENT_ID = ''
+export const FACEBOOK_CLIENT_SECRET = ''
+export const TWITTER_CONSUMER_KEY = ''
+export const TWITTER_CONSUMER_SECRET = ''
+export const GOOGLE_CLIENT_ID = ''
+export const GOOGLE_CLIENT_SECRET = ''

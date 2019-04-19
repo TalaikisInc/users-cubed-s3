@@ -1,6 +1,13 @@
+import passport from 'passport'
+import { Strategy as FacebookStrategy } from 'passport-facebook'
+import { Strategy as TwitterStrategy } from 'passport-twitter'
+import { Strategy as GoogleStrategy } from 'passport-google-oauth2'
+
+import socialConfig from './socialConfig'
 import joinDelete from '../../lib/data/joinDelete'
 import dataLib from '../../lib/data/functions'
 import userObj from '../../lib/data/userObj'
+import loose from '../../lib/data/loose'
 import hash from '../../lib/security/hash'
 import config from '../../config'
 import randomID from '../../lib/security/randomID'
@@ -9,7 +16,8 @@ import sendSMS from '../../lib/phone'
 import log from '../../lib/debug/log'
 import error from '../../lib/debug/error'
 import auth from '../../lib/security/auth'
-import t from '../../lib/translations'
+import { t, setLocale } from '../../lib/translations'
+// const providers = ['twitter', 'facebook', 'google']
 
 const sendEmailConfirmation = (email, done) => {
   randomID(32, (code) => {
@@ -106,7 +114,7 @@ const createUser = (obj, done) => {
         city: obj.city,
         country: obj.country,
         dob: obj.dob,
-        avatarUrl: bj.avatarUrl,
+        avatarUrl: obj.avatarUrl,
         confirmed: {
           email: false,
           phone: false
@@ -148,150 +156,156 @@ const createUser = (obj, done) => {
 }
 
 export const create = (data, done) => {
-  const u = userObj(data)
-
-  if (u.email && u.password && u.tosAgreement) {
-    dataLib.read('users', u.email, (err, _) => {
-      if (err) {
-        createUser(u, (err) => {
-          if (!err) {
-            done(200, { status: t('ok') })
-          } else {
-            done(500, { error: err })
-          }
-        })
-      } else {
-        done(400, { error: t('error_user_exists') })
-      }
-    })
-  } else {
-    done(400, { error: t('error_required') })
-  }
-}
-
-export const edit = (data, done) => {
-  const u = userObj(data)
-
-  if (u && u.email) {
-    if (u.firstName || u.lastName || u.password) {
-      auth(data, (tokenData) => {
-        if (tokenData) {
-          dataLib.read('users', u.email, (err, userData) => {
-            if (!err && userData) {
-              if (userData.confirmed.email || userData.confirmed.phone) {
-                if (u.firstName !== userData.firstName) {
-                  userData.firstName = u.firstName
-                }
-
-                if (u.address !== userData.address) {
-                  userData.address = u.address
-                }
-
-                if (u.city !== userData.city) {
-                  userData.city = u.city
-                }
-
-                if (u.country !== userData.country) {
-                  userData.country = u.country
-                }
-
-                if (u.lastName !== userData.lastName) {
-                  userData.lastName = u.lastName
-                }
-
-                if (u.avatarUrl !== userData.avatarUrl) {
-                  userData.avatarUrl = u.avatarUrl
-                }
-
-                if (u.dob !== userData.dob) {
-                  userData.dob = u.dob
-                }
-
-                if (u.zipCode !== userData.zipCode) {
-                  userData.zipCode = u.zipCode
-                }
-
-                if (u.dialCode !== userData.dialCode) {
-                  userData.dialCode = u.dialCode
-                }
-
-                if (u.email !== userData.email) {
-                  data.email = u.email
-                  sendEmailConfirmation(u.email, (err) => {
-                    if (!err) {
-                      log('Email sent.', 'FgGreen')
-                    } else {
-                      error(err)
-                    }
-                  })
-                }
-
-                if (u.password) { // this is already checked
-                  hash(u.password, (hashed) => {
-                    if (hashed) {
-                      userData.password = hashed
-                      userData.updatedAt = Date.now()
-                      dataLib.update('users', u.email, userData, (err) => {
-                        if (!err) {
-                          dataLib.read('users', u.email, (err, userData) => {
-                            if (!err && userData) {
-                              done(200, userData)
-                            } else {
-                              done(500, { error: 'Cannot read user.' })
-                            }
-                          })
-                        } else {
-                          done(500, { error: 'Cannot update user.' })
-                        }
-                      })
-                    } else {
-                      done(500, { error: t('error_hash') })
-                    }
-                  })
+  setLocale(data, () => {
+    userObj(data, (u) => {
+      if (u) {
+        if (u.email && u.password && u.tosAgreement) {
+          dataLib.read('users', u.email, (err, _) => {
+            if (err) {
+              createUser(u, (err) => {
+                if (!err) {
+                  done(200, { status: t('ok') })
                 } else {
-                  userData.updatedAt = Date.now()
-                  ataLib.update('users', u.email, userData, (err) => {
-                    if (!err) {
-                      dataLib.read('users', u.email, (err, userData) => {
-                        if (!err && userData) {
-                          done(200, userData)
-                        } else {
-                          done(500, { error: 'Cannot read user.' })
-                        }
-                      })
-                    } else {
-                      done(500, { error: 'Cannot update user.' })
-                    }
-                  })
+                  done(500, { error: err })
                 }
-              } else {
-                done(400, { error: t('error_confirmed') })
-              }
+              })
             } else {
-              done(400, { error: t('error_no_user') })
+              done(400, { error: t('error_user_exists') })
             }
           })
         } else {
-          done(403, { error: t('unauthorized') })
+          done(400, { error: t('error_required') })
+        }
+      } else {
+        done(400, { error: t('error_required') })
+      }
+    })
+  })
+}
+
+const editFields = (u, userData, done) => {
+  if (u.firstName !== userData.firstName) {
+    userData.firstName = u.firstName
+  }
+
+  if (u.address !== userData.address) {
+    userData.address = u.address
+  }
+
+  if (u.city !== userData.city) {
+    userData.city = u.city
+  }
+
+  if (u.country !== userData.country) {
+    userData.country = u.country
+  }
+
+  if (u.lastName !== userData.lastName) {
+    userData.lastName = u.lastName
+  }
+
+  if (u.avatarUrl !== userData.avatarUrl) {
+    userData.avatarUrl = u.avatarUrl
+  }
+
+  if (u.dob !== userData.dob) {
+    userData.dob = u.dob
+  }
+
+  if (u.zipCode !== userData.zipCode) {
+    userData.zipCode = u.zipCode
+  }
+
+  if (u.dialCode !== userData.dialCode) {
+    userData.dialCode = u.dialCode
+  }
+
+  // @TODO this requires additional validaiton here, because there is chance someone can set email that is not an email
+  if (u.email !== userData.email) {
+    userData.email = u.email
+    sendEmailConfirmation(u.email, (err) => {
+      if (!err) {
+        log('Email sent.')
+      } else {
+        error(err)
+      }
+    })
+  }
+
+  userData.updatedAt = Date.now()
+
+  if (u.password) {
+    hash(u.password, (hashed) => {
+      if (hashed) {
+        userData.password = hashed
+      } else {
+        done(t('error_hash'))
+      }
+    })
+  }
+  done(false, userData)
+}
+
+const _update = (data, tokenData, done) => {
+  loose(data, (u) => {
+    if (u) {
+      dataLib.read('users', tokenData.email, (err, userData) => {
+        if (!err && userData) {
+          if (userData.confirmed.email || userData.confirmed.phone) {
+            editFields(u, userData, (err, newData) => {
+              if (!err && newData) {
+                dataLib.update('users', tokenData.email, newData, (err) => {
+                  if (!err) {
+                    dataLib.read('users', tokenData.email, (err, returnUuser) => {
+                      if (!err && returnUuser) {
+                        delete returnUuser.password
+                        done(200, returnUuser)
+                      } else {
+                        done(500, { error: 'Cannot read user.' })
+                      }
+                    })
+                  } else {
+                    done(500, { error: 'Cannot update user.' })
+                  }
+                })
+              } else {
+                done(500, { error: 'Uknown problem.' })
+              }
+            })
+          } else {
+            done(400, { error: 'Account not confirmed.' })
+          }
+        } else {
+          done(500, { error: 'Cannot read user.' })
         }
       })
     } else {
       done(400, { error: t('error_required') })
     }
-  } else {
-    done(400, { error: t('error_required') })
-  }
+  })
+}
+
+export const edit = (data, done) => {
+  auth(data, (tokenData) => {
+    if (tokenData) {
+      _update(data, tokenData, (status, outData) => {
+        done(status, outData)
+      })
+    } else {
+      done(403, { error: t('unauthorized') })
+    }
+  })
 }
 
 export const destroy = (data, done) => {
   auth(data, (tokenData) => {
     if (tokenData) {
-      dataLib.read('users', data.payload.email, (err, userData) => {
+      dataLib.read('users', tokenData.email, (err, userData) => {
         if (!err && userData) {
           const refs = typeof userData.referred === 'object' && Array.isArray(userData.referred) ? userData.referred : []
           // delete any associated tables
           // const orders = typeof userData.orders === 'object' && Array.isArray(userData.orders) ? userData.orders : []
-          dataLib.delete('users', data.payload.email, (err) => {
+          dataLib.delete('users', tokenData.email, (err) => {
             if (!err) {
               joinDelete('refers', refs, (err) => {
                 if (err) {
@@ -316,4 +330,151 @@ export const destroy = (data, done) => {
 
 export const confirmPhone = () => {
 
+}
+
+export const createFacebook = (data, done) => {
+  passport.use(new FacebookStrategy({
+    clientID: socialConfig.facebook.clientID,
+    clientSecret: socialConfig.facebook.clientSecret,
+    callbackURL: socialConfig.facebook.callbackURL }, (accessToken, refreshToken, profile, done) => {
+    dataLib.read('users', profile.id, (err, _) => {
+      if (err) {
+        const now = Date.now()
+        // @TODO same providers fields into existing fields; if email exists create user under email
+        const u = {
+          provider: 'facebook',
+          oauth: profile.id,
+          profile,
+          firstName: '',
+          lastName: '',
+          dialCoode: '',
+          phone: '',
+          email: '',
+          tosAgreement: true,
+          referred: [],
+          address: '',
+          zipCode: '',
+          city: '',
+          country: '',
+          dob: '',
+          avatarUrl: '',
+          confirmed: {
+            email: true,
+            phone: false
+          },
+          registeredAt: now,
+          updatedAt: now,
+          role: 'user'
+        }
+
+        createUser(u, (err) => {
+          if (!err) {
+            done(200, { status: t('ok') })
+          } else {
+            done(500, { error: err })
+          }
+        })
+      } else {
+        done(400, { error: t('error_user_exists') })
+      }
+    })
+  }))
+}
+
+export const createTwitter = (data, done) => {
+  passport.use(new TwitterStrategy({
+    consumerKey: socialConfig.twitter.consumerKey,
+    consumerSecret: socialConfig.twitter.consumerSecret,
+    callbackURL: socialConfig.twitter.callbackURL }, (accessToken, refreshToken, profile, done) => {
+    dataLib.read('users', profile.id, (err, _) => {
+      if (err) {
+        const now = Date.now()
+        // @TODO same providers fields into existing fields; if email exists create user under email
+        const u = {
+          provider: 'twitter',
+          oauth: profile.id,
+          profile,
+          firstName: '',
+          lastName: '',
+          dialCoode: '',
+          phone: '',
+          email: '',
+          tosAgreement: true,
+          referred: [],
+          address: '',
+          zipCode: '',
+          city: '',
+          country: '',
+          dob: '',
+          avatarUrl: '',
+          confirmed: {
+            email: true,
+            phone: false
+          },
+          registeredAt: now,
+          updatedAt: now,
+          role: 'user'
+        }
+
+        createUser(u, (err) => {
+          if (!err) {
+            done(200, { status: t('ok') })
+          } else {
+            done(500, { error: err })
+          }
+        })
+      } else {
+        done(400, { error: t('error_user_exists') })
+      }
+    })
+  }))
+}
+
+export const createGoogle = (data, done) => {
+  passport.use(new GoogleStrategy({
+    clientID: socialConfig.google.clientID,
+    clientSecret: socialConfig.google.clientSecret,
+    callbackURL: socialConfig.google.callbackURL }, (accessToken, refreshToken, profile, done) => {
+    dataLib.read('users', profile.id, (err, _) => {
+      if (err) {
+        const now = Date.now()
+        // @TODO same providers fields into existing fields; if email exists create user under email
+        const u = {
+          provider: 'google',
+          oauth: profile.id,
+          profile,
+          firstName: '',
+          lastName: '',
+          dialCoode: '',
+          phone: '',
+          email: '',
+          tosAgreement: true,
+          referred: [],
+          address: '',
+          zipCode: '',
+          city: '',
+          country: '',
+          dob: '',
+          avatarUrl: '',
+          confirmed: {
+            email: true,
+            phone: false
+          },
+          registeredAt: now,
+          updatedAt: now,
+          role: 'user'
+        }
+
+        createUser(u, (err) => {
+          if (!err) {
+            done(200, { status: t('ok') })
+          } else {
+            done(500, { error: err })
+          }
+        })
+      } else {
+        done(400, { error: t('error_user_exists') })
+      }
+    })
+  }))
 }

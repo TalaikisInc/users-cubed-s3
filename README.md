@@ -13,6 +13,8 @@ This is full user management service API. as [original version](https://github.c
 
 ## TODO
 
+* user edit email validaiton
+* global email pre-validation using dns
 * Finish phone confirm
 * Finish json validators
 * Finish i18n
@@ -23,6 +25,8 @@ This is full user management service API. as [original version](https://github.c
 * Tests
 * Cleanup for old data in S3
 * Move to Lambda (?)
+* TOKEN_CREATE_SOCIAL
+* USER_CREATE_SOCIAL
 
 ## Install
 

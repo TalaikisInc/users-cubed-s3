@@ -28,51 +28,53 @@ export const get = (data, done) => {
 }
 
 export const create = (data, done) => {
-  console.log('v.validate(data, createSchema)')
-  console.log(v.validate(data, createSchema))
-  const u = userObj(data)
-
-  if ((u.email && u.password) || (u.phone && u.password)) {
-    dataLib.read('users', u.email, (err, userData) => {
-      if (!err && userData) {
-        if (userData.confirmed.email || userData.confirmed.phone) {
-          hash(u.password, (hashed) => {
-            if (userData.password === hashed) {
-              randomID(32, (tokenId) => {
-                if (tokenId) {
-                  const expiry = Date.now() + 1000 * config.tokenExpiry
-                  const tokenObj = {
-                    expiry,
-                    tokenId,
-                    role: userData.role,
-                    email: u.email
-                  }
-
-                  dataLib.create('tokens', tokenId, tokenObj, (err, res) => {
-                    if (!err) {
-                      done(200, { token: tokenId })
+  userObj(data, (u) => {
+    if (u) {
+      if ((u.email && u.password) || (u.phone && u.password)) {
+        dataLib.read('users', u.email, (err, userData) => {
+          if (!err && userData) {
+            if (userData.confirmed.email || userData.confirmed.phone) {
+              hash(u.password, (hashed) => {
+                if (userData.password === hashed) {
+                  randomID(32, (tokenId) => {
+                    if (tokenId) {
+                      const expiry = Date.now() + 1000 * config.tokenExpiry
+                      const tokenObj = {
+                        expiry,
+                        tokenId,
+                        role: userData.role,
+                        email: u.email
+                      }
+    
+                      dataLib.create('tokens', tokenId, tokenObj, (err, res) => {
+                        if (!err) {
+                          done(200, { token: tokenId })
+                        } else {
+                          done(500, { error: 'Could not create token.' })
+                        }
+                      })
                     } else {
-                      done(500, { error: 'Could not create token.' })
+                      done(400, { error: 'Cannot get unique ID.' })
                     }
                   })
                 } else {
-                  done(400, { error: 'Cannot get unique ID.' })
+                  done(401, { error: 'Invalid password.' })
                 }
               })
             } else {
-              done(401, { error: 'Invalid password.' })
+              done(400, { error: 'User\'s account is not confirmed.' })
             }
-          })
-        } else {
-          done(400, { error: 'User\'s account is not confirmed.' })
-        }
+          } else {
+            done(400, { error: 'Cannot find specified user.' })
+          }
+        })
       } else {
-        done(400, { error: 'Cannot find specified user.' })
+        done(400, { error: 'Missing required fields.' })
       }
-    })
-  } else {
-    done(400, { error: 'Missing required fields.' })
-  }
+    } else {
+      done(400, { error: 'Missing required fields.' })
+    }
+  })
 }
 
 export const extend = (data, done) => {
@@ -108,4 +110,10 @@ export const destroy = (data, done) => {
   } else {
     done(400, { error: 'Missing required field.' })
   }
+}
+
+export const createSocial = (data, done) => {
+  const oauth = typeof data.payload.oauth === 'string' ? data.payload.oauth : false
+  const provider = typeof data.payload.provider === 'string' && providers.includes(data.payload.provider) ? data.payload.provider : false
+
 }
