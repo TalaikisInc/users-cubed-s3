@@ -1,13 +1,11 @@
-import { Validator } from 'jsonschema'
-
 import randomID from '../../lib/security/randomID'
 import config from '../../config'
 import dataLib from '../../lib/data/functions'
 import userObj from '../../lib/data/userObj'
 import hash from '../../lib/security/hash'
 import finalizeRequest from '../../lib/data/finalizeRequest'
-import { createSchema } from './schema'
-const v = new Validator()
+import schema from './schema'
+import { t, setLocale } from '../../lib/translations'
 
 const valid = (data) => {
   return typeof data.payload.tokenId === 'string' && data.payload.tokenId.trim().length === 64 ? data.payload.tokenId.trim() : false
@@ -19,60 +17,72 @@ export const get = (data, done) => {
       if (!err && tokenData) {
         done(200, tokenData)
       } else {
-        done(404, { error: `No such user, error: ${err.message}` })
+        done(404, { error: t('error_no_user') })
       }
     })
   } else {
-    done(400, { error: 'Missing required field.' })
+    done(400, { error: t('error_required') })
   }
 }
 
+const _hash = (u, userData, done) => {
+  hash(u.password, (hashed) => {
+    if (userData.password === hashed) {
+      randomID(32, (tokenId) => {
+        if (tokenId) {
+          const expiry = Date.now() + 1000 * config.tokenExpiry
+          const tokenObj = {
+            expiry,
+            tokenId,
+            role: userData.role,
+            email: u.email
+          }
+
+          dataLib.create('tokens', tokenId, tokenObj, (err, res) => {
+            if (!err) {
+              done(200, { token: tokenId })
+            } else {
+              done(500, { error: t('error_token') })
+            }
+          })
+        } else {
+          done(400, { error: t('error_id') })
+        }
+      })
+    } else {
+      done(401, { error: t('error_invalid_password') })
+    }
+  })
+}
+
 export const create = (data, done) => {
-  userObj(data, (u) => {
-    if (u) {
-      if ((u.email && u.password) || (u.phone && u.password)) {
-        dataLib.read('users', u.email, (err, userData) => {
-          if (!err && userData) {
-            if (userData.confirmed.email || userData.confirmed.phone) {
-              hash(u.password, (hashed) => {
-                if (userData.password === hashed) {
-                  randomID(32, (tokenId) => {
-                    if (tokenId) {
-                      const expiry = Date.now() + 1000 * config.tokenExpiry
-                      const tokenObj = {
-                        expiry,
-                        tokenId,
-                        role: userData.role,
-                        email: u.email
-                      }
-    
-                      dataLib.create('tokens', tokenId, tokenObj, (err, res) => {
-                        if (!err) {
-                          done(200, { token: tokenId })
-                        } else {
-                          done(500, { error: 'Could not create token.' })
-                        }
-                      })
-                    } else {
-                      done(400, { error: 'Cannot get unique ID.' })
-                    }
+  schema.isValid(data.payload).then((valid) => {
+    if (valid) {
+      userObj(data, (u) => {
+        if (u) {
+          if ((u.email && u.password) || (u.phone && u.password)) {
+            dataLib.read('users', u.email, (err, userData) => {
+              if (!err && userData) {
+                if (userData.confirmed.email || userData.confirmed.phone) {
+                  _hash(u, userData, (status, out) => {
+                    done(status, out)
                   })
                 } else {
-                  done(401, { error: 'Invalid password.' })
+                  done(400, { error: t('error_confirmed') })
                 }
-              })
-            } else {
-              done(400, { error: 'User\'s account is not confirmed.' })
-            }
+              } else {
+                done(400, { error: t('error_no_user') })
+              }
+            })
           } else {
-            done(400, { error: 'Cannot find specified user.' })
+            done(400, { error: t('error_required') })
           }
-        })
-      } else {
-        done(400, { error: 'Missing required fields.' })
-      }
+        } else {
+          done(400, { error: t('error_required') })
+        }
+      })
     } else {
-      done(400, { error: 'Missing required fields.' })
+      done(400, { error: t('error_required') })
     }
   })
 }
@@ -86,14 +96,14 @@ export const extend = (data, done) => {
           tokenData.expiry = Date.now() + 1000 * config.tokenExpiry
           finalizeRequest('tokens', id, 'update', done, tokenData)
         } else {
-          done(400, { error: 'Token is expired, please login again.' })
+          done(400, { error: t('error_token_expired') })
         }
       } else {
-        done(400, { error: 'Token doesn\'t exist.' })
+        done(400, { error: t('error_token_notfound') })
       }
     })
   } else {
-    done(400, { error: 'Missing required fields or invalid.' })
+    done(400, { error: t('error_required') })
   }
 }
 
@@ -104,11 +114,11 @@ export const destroy = (data, done) => {
       if (!err && data) {
         finalizeRequest('tokens', token, 'delete', done)
       } else {
-        done(404, { error: 'No such token.' })
+        done(404, { error: t('error_token_notfound') })
       }
     })
   } else {
-    done(400, { error: 'Missing required field.' })
+    done(400, { error: t('error_required') })
   }
 }
 

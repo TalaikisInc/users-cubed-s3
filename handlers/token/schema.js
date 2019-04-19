@@ -1,23 +1,9 @@
-export const createSchema = {
-  'id': '/TokenCreate',
-  'type': 'object',
-  'properties': {
-    'email': {
-      'type': 'string',
-      'format': 'email'
-    },
-    'password': {
-      'type': 'string',
-      "minLength": 12
-    },
-    'locale': {
-      'type': 'string',
-      "minLength": 2,
-      "maxLength": 2
-    },
-    'action': {
-      'enum': ['TOKEN_CREATE']
-    }
-  },
-  'required': ['email', 'password', 'action']
-}
+import { object, string } from 'yup'
+
+export default object().shape({
+  email: string().required().email(),
+  password: string().required().min(12),
+  key: string().required(),
+  action: string().required(),
+  locale: string().required().oneOf(['en', 'fr'])
+})

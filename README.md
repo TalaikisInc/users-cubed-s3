@@ -15,7 +15,7 @@ This is full user management service API. as [original version](https://github.c
 
 * Finish phone confirm
 * Finish json validators
-* Finish i18n
+* Finish setLocale
 * Move into async/await (?)
 * Response caching (?)
 * Penetration testing

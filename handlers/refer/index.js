@@ -7,6 +7,7 @@ import userObj from '../../lib/data/userObj'
 import finalizeRequest from '../../lib/data/finalizeRequest'
 import sendEmail from '../../lib/email'
 import uuidv4 from '../../lib/security/uuidv4'
+import { t, setLocale } from '../../lib/translations'
 
 const generateToken = (email, done) => {
   const token = uuidv4()
@@ -28,7 +29,7 @@ const generateToken = (email, done) => {
 
 const sendReferEmail = (email, token, referringUser, done) => {
   const subject = `${referringUser} is inviting you to join ${config.company}`
-  const msg = `Click the following link: <a href="${config.baseUrl}?token=${token}">${token}</a>`
+  const msg = t('refer_email', { baseUrl: config.baseUrl, token: token })
 
   sendEmail(email, subject, msg, (err) => {
     if (!err.error) {
@@ -57,32 +58,32 @@ export const refer = (data, done) => {
                   if (!err) {
                     userData.referred.push(refToken)
                     userData.updatedAt = Date.now()
-      
+
                     const referringUser = `${userData.firstName} ${userData.lastName} <${userData.email}>`
                     sendReferEmail(refEmail, refToken, referringUser, (err) => {
                       if (!err) {
                         finalizeRequest('users', u.phone, 'update', done, userData)
                       } else {
-                        done(400, { error: `Cannot send referral email: ${err}` })
+                        done(400, { error: t('error_refer_email') })
                       }
                     })
                   } else {
-                    done(400, { error: `Cannot generate token: ${refToken}` })
+                    done(400, { error: t('error_id') })
                   }
                 })
               } else {
-                done(400, { error: 'No such user.' })
+                done(400, { error: t('error_no_user') })
               }
             })
           } else {
-            done(400, { error: 'Not all data is provided.' })
+            done(400, { error: t('error_required') })
           }
         } else {
-          done(400, { error: 'No date provided.' })
+          done(400, { error: t('error_required') })
         }
       })
     } else {
-      done(403, { error: 'Wrong token provided.' })
+      done(403, { error: t('error_wrong_token') })
     }
   })
 }
@@ -100,11 +101,11 @@ export const use = (data, done) => {
         refData.used = true
         finalizeRequest('refers', token, 'update', done, refData)
       } else {
-        done(403, { error: 'No such referral token.' })
+        done(403, { error: t('error_token_notfound') })
       }
     })
   } else {
-    done(400, { error: 'Wrong data provided.' })
+    done(400, { error: t('error_required') })
   }
 }
 
@@ -129,21 +130,21 @@ export const register = (data, done) => {
                   tokenData.finalized = true
                   finalizeRequest('refers', token, 'update', done, tokenData)
                 } else {
-                  done(500, { error: 'Cannot update user.' })
+                  done(500, { error: t('error_cannot_update') })
                 }
               })
             } else {
-              done(400, { error: 'Referred user already registered.' })
+              done(400, { error: t('error_ref_reg') })
             }
           } else {
-            done(400, { error: 'Cannot find referral token.' })
+            done(400, { error: t('error_token_notfound') })
           }
         })
       } else {
-        done(400, { error: 'No such user' })
+        done(400, { error: t('error_no_user') })
       }
     })
   } else {
-    done(400, { error: 'Wrong data provided.' })
+    done(400, { error: t('error_required') })
   }
 }

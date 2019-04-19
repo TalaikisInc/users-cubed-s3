@@ -18,7 +18,6 @@ import log from '../../lib/debug/log'
 import error from '../../lib/debug/error'
 import auth from '../../lib/security/auth'
 import { t, setLocale } from '../../lib/translations'
-// const providers = ['twitter', 'facebook', 'google']
 
 const sendEmailConfirmation = (email, done) => {
   randomID(32, (code) => {
@@ -54,7 +53,7 @@ const sendEmailConfirmation = (email, done) => {
 const sendPhoneConfirmation = (phone, email, done) => {
   randomID(6, (code) => {
     if (code) {
-      const msg = `Your code for ${config.company} account: ${code}`
+      const msg = t('account_confirm_phone', { company: config.company, code: code })
       const obj = {
         email,
         token: code,
@@ -265,22 +264,22 @@ const _update = (data, tokenData, done) => {
                         delete returnUuser.password
                         done(200, returnUuser)
                       } else {
-                        done(500, { error: 'Cannot read user.' })
+                        done(500, { error: t('error_cannot_read') })
                       }
                     })
                   } else {
-                    done(500, { error: 'Cannot update user.' })
+                    done(500, { error: t('error_cannot_update') })
                   }
                 })
               } else {
-                done(500, { error: 'Uknown problem.' })
+                done(500, { error: t('error_unknown') })
               }
             })
           } else {
-            done(400, { error: 'Account not confirmed.' })
+            done(400, { error: t('error_confirmed') })
           }
         } else {
-          done(500, { error: 'Cannot read user.' })
+          done(500, { error: t('error_cannot_read') })
         }
       })
     } else {

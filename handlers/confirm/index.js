@@ -1,5 +1,3 @@
-import { Validator } from 'jsonschema'
-
 import error from '../../lib/debug/error'
 import config from '../../config'
 import dataLib from '../../lib/data/functions'
@@ -7,8 +5,6 @@ import finalizeRequest from '../../lib/data/finalizeRequest'
 import hash from '../../lib/security/hash'
 import randomID from '../../lib/security/randomID'
 import sendEmail from '../../lib/email'
-// import { schema } from './schema'
-// const v = new Validator()
 import { t, setLocale } from '../../lib/translations'
 
 const token = (data, done) => {
@@ -62,7 +58,7 @@ const selectType = (tokenData, userData, done) => {
   }
 }
 
-const cofirm = (id, done) => {
+const _confirm = (id, done) => {
   dataLib.read('confirms', id, (err, tokenData) => {
     if (!err && tokenData) {
       if (tokenData.expiry > Date.now()) {
@@ -92,7 +88,7 @@ export default (data, done) => {
   setLocale(data, () => {
     token(data, (id) => {
       if (id) {
-        cofirm(id, (status, data) => {
+        _confirm(id, (status, data) => {
           done(status, data)
         })
       } else {

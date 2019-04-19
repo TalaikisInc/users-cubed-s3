@@ -9,9 +9,8 @@ import { t, setLocale } from '../../lib/translations'
 const sendEmailReset = (email, done) => {
   randomID(32, (code) => {
     if (code) {
-      const subject = `Please confirm your password reset for ${config.company}`
-      const msg = `Click here to confirm password reset:
-        <h4><a href="${config.baseUrl}confirm-reset/${code}">${code}</a></h4>`
+      const subject = t('reset_email', { company: config.company })
+      const msg = t('reset_email_text', { baseUrl: config.baseUrl, cod: code })
       const obj = {
         email,
         type: 'reset',
@@ -29,11 +28,11 @@ const sendEmailReset = (email, done) => {
             }
           })
         } else {
-          done('Unable to save confirmation code.')
+          done(t('error_confirmation_save'))
         }
       })
     } else {
-      done('Unable to generate confirmation code.')
+      done(t('error_confirmation_generate'))
     }
   })
 }
@@ -41,7 +40,7 @@ const sendEmailReset = (email, done) => {
 const sendPhoneConfirmation = (phone, email, done) => {
   randomID(6, (code) => {
     if (code) {
-      const msg = `Your code for ${config.company} password reset: ${code}`
+      const msg = t('account_reset_phone', { company: config.company, code: code })
       const obj = {
         email,
         type: 'reset',
@@ -59,11 +58,11 @@ const sendPhoneConfirmation = (phone, email, done) => {
             }
           })
         } else {
-          done('Unable to save confirmation code.')
+          done(t('error_confirmation_save'))
         }
       })
     } else {
-      done('Unable to generate confirmation code.')
+      done(t('error_confirmation_generate'))
     }
   })
 }
@@ -98,18 +97,18 @@ export default (data, done) => {
               if (!err.error) {
                 done(200, { status: t('ok') })
               } else {
-                done(500, { error: `Cannot send password reset email: ${err.error}` })
+                done(500, { error: t('error_email') })
               }
             })
           } else {
-            done(400, { error: 'No such user.' })
+            done(400, { error: t('error_no_user') })
           }
         })
       } else {
-        done(400, { error: 'Not all required fields provided.' })
+        done(400, { error: t('error_required') })
       }
     } else {
-      done(400, { error: 'No data.' })
+      done(400, { error: t('error_required') })
     }
   })
 }
