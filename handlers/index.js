@@ -2,15 +2,13 @@ import ACTIONS from '../actions'
 
 export default {
   [ACTIONS.USER.CREATE]: require('./users').create,
-  [ACTIONS.USER.CREATE_FACEBOOK]: require('./users').createFacebook,
-  [ACTIONS.USER.CREATE_TWITTER]: require('./users').createTwitter,
-  [ACTIONS.USER.CREATE_GOOGLE]: require('./users').createGoogle,
+  [ACTIONS.USER.CREATE_SOCIAL]: require('./users').createSocial,
   [ACTIONS.USER.EDIT]: require('./users').edit,
   [ACTIONS.USER.DESTROY]: require('./users').destroy,
   [ACTIONS.USER.GET]: require('./users').get,
   [ACTIONS.USER.CONFIRM_PHONE]: require('./users').confirmPhone,
+  [ACTIONS.USER.SET_ROLE]: require('./users').setRole,
   [ACTIONS.TOKEN.CREATE]: require('./token').create,
-  [ACTIONS.TOKEN.CREATE_SOCIAL]: require('./token').createSocial,
   [ACTIONS.TOKEN.EXTEND]: require('./token').extend,
   [ACTIONS.TOKEN.DESTROY]: require('./token').destroy,
   [ACTIONS.TOKEN.GET]: require('./token').get,

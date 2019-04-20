@@ -1,5 +1,3 @@
-import { validate } from 'isemail'
-
 import tokenHeader from '../../lib/data/tokenHeader'
 import config from '../../config'
 import dataLib from '../../lib/data/functions'
@@ -8,6 +6,7 @@ import finalizeRequest from '../../lib/data/finalizeRequest'
 import sendEmail from '../../lib/email'
 import uuidv4 from '../../lib/security/uuidv4'
 import { t, setLocale } from '../../lib/translations'
+import { referSchema, useSchema, registerSchema } from './schema'
 
 const generateToken = (email, done) => {
   const token = uuidv4()
@@ -66,34 +65,39 @@ const _generateToken = (u, userData, refEmail, done) => {
   * @return bool - success or failure with optional error object
 */
 export const refer = async (data, done) => {
-  setLocale(data, () => {
-    tokenHeader(data, (authToken) => {
-      if (authToken) {
-        userObj(data, (u) => {
-          if (u) {
-            const refEmail = typeof data.payload.to === 'string' && data.payload.to.indexOf('@') > -1 ? data.payload.to.trim() : false
-            if (u.email && refEmail) {
-              dataLib.read('users', u.email, (err, userData) => {
-                if (!err && data) {
-                  _generateToken(u, userData, refEmail, (status, data) => {
-                    done(status, data)
-                  })
-                } else {
-                  done(400, { error: t('error_no_user') })
-                }
-              })
+  const valid = await referSchema.isValid(data.payload)
+  if (valid) {
+    setLocale(data, () => {
+      tokenHeader(data, (authToken) => {
+        if (authToken) {
+          userObj(data, (u) => {
+            if (u) {
+              const refEmail = typeof data.payload.to === 'string' && data.payload.to.indexOf('@') > -1 ? data.payload.to.trim() : false
+              if (u.email && refEmail) {
+                dataLib.read('users', u.email, (err, userData) => {
+                  if (!err && data) {
+                    _generateToken(u, userData, refEmail, (status, data) => {
+                      done(status, data)
+                    })
+                  } else {
+                    done(400, { error: t('error_no_user') })
+                  }
+                })
+              } else {
+                done(400, { error: t('error_required') })
+              }
             } else {
               done(400, { error: t('error_required') })
             }
-          } else {
-            done(400, { error: t('error_required') })
-          }
-        })
-      } else {
-        done(403, { error: t('error_wrong_token') })
-      }
+          })
+        } else {
+          done(403, { error: t('error_wrong_token') })
+        }
+      })
     })
-  })
+  } else {
+    done(400, { error: t('error_required') })
+  }
 }
 
 /**
@@ -102,21 +106,26 @@ export const refer = async (data, done) => {
   * @return bool - success or failure with optional error object
 */
 export const use = async (data, done) => {
-  setLocale(data, () => {
-    const token = typeof data.payload.token === 'string' && data.payload.token.length === 36 ? data.payload.token : false
-    if (token) {
-      dataLib.read('refers', token, (err, refData) => {
-        if (!err && refData) {
-          refData.used = true
-          finalizeRequest('refers', token, 'update', done, refData)
-        } else {
-          done(403, { error: t('error_token_notfound') })
-        }
-      })
-    } else {
-      done(400, { error: t('error_required') })
-    }
-  })
+  const valid = await useSchema.isValid(data.payload)
+  if (valid) {
+    setLocale(data, () => {
+      const token = typeof data.payload.token === 'string' && data.payload.token.length === 36 ? data.payload.token : false
+      if (token) {
+        dataLib.read('refers', token, (err, refData) => {
+          if (!err && refData) {
+            refData.used = true
+            finalizeRequest('refers', token, 'update', done, refData)
+          } else {
+            done(403, { error: t('error_token_notfound') })
+          }
+        })
+      } else {
+        done(400, { error: t('error_required') })
+      }
+    })
+  } else {
+    done(400, { error: t('error_required') })
+  }
 }
 
 /**
@@ -125,38 +134,43 @@ export const use = async (data, done) => {
   * @return bool - success or failure with optional error object
 */
 export const register = async (data, done) => {
-  setLocale(data, () => {
-    const token = typeof data.payload.token === 'string' && data.payload.token.length === 36 ? data.payload.token : false
-    const email = typeof data.payload.from === 'string' && validate(data.payload.from) ? data.payload.from : false
-    if (token && email) {
-      dataLib.read('users', email, (err, userData) => {
-        if (!err && userData) {
-          dataLib.read('refers', token, (err, tokenData) => {
-            if (!err && tokenData) {
-              if (!userData.referred.includes(token)) {
-                userData.referred.push(token)
-                userData.updatedAt = Date.now()
-                dataLib.update('users', email, userData, (err) => {
-                  if (!err) {
-                    tokenData.finalized = true
-                    finalizeRequest('refers', token, 'update', done, tokenData)
-                  } else {
-                    done(500, { error: t('error_cannot_update') })
-                  }
-                })
+  const valid = await registerSchema.isValid(data.payload)
+  if (valid) {
+    setLocale(data, () => {
+      const token = typeof data.payload.token === 'string' && data.payload.token.length === 36 ? data.payload.token : false
+      const email = data.payload.from
+      if (token && email) {
+        dataLib.read('users', email, (err, userData) => {
+          if (!err && userData) {
+            dataLib.read('refers', token, (err, tokenData) => {
+              if (!err && tokenData) {
+                if (!userData.referred.includes(token)) {
+                  userData.referred.push(token)
+                  userData.updatedAt = Date.now()
+                  dataLib.update('users', email, userData, (err) => {
+                    if (!err) {
+                      tokenData.finalized = true
+                      finalizeRequest('refers', token, 'update', done, tokenData)
+                    } else {
+                      done(500, { error: t('error_cannot_update') })
+                    }
+                  })
+                } else {
+                  done(400, { error: t('error_ref_reg') })
+                }
               } else {
-                done(400, { error: t('error_ref_reg') })
+                done(400, { error: t('error_token_notfound') })
               }
-            } else {
-              done(400, { error: t('error_token_notfound') })
-            }
-          })
-        } else {
-          done(400, { error: t('error_no_user') })
-        }
-      })
-    } else {
-      done(400, { error: t('error_required') })
-    }
-  })
+            })
+          } else {
+            done(400, { error: t('error_no_user') })
+          }
+        })
+      } else {
+        done(400, { error: t('error_required') })
+      }
+    })
+  } else {
+    done(400, { error: t('error_required') })
+  }
 }

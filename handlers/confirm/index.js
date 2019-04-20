@@ -6,6 +6,7 @@ import hash from '../../lib/security/hash'
 import randomID from '../../lib/security/randomID'
 import sendEmail from '../../lib/email'
 import { t, setLocale } from '../../lib/translations'
+import { confirmSchema } from './schema'
 
 const token = (data, done) => {
   if (typeof data.payload === 'object') {
@@ -85,15 +86,20 @@ const _confirm = (id, done) => {
 }
 
 export default async (data, done) => {
-  setLocale(data, () => {
-    token(data, (id) => {
-      if (id) {
-        _confirm(id, (status, data) => {
-          done(status, data)
-        })
-      } else {
-        done(400, { error: t('error_required') })
-      }
+  const valid = await confirmSchema.isValid(data.payload)
+  if (valid) {
+    setLocale(data, () => {
+      token(data, (id) => {
+        if (id) {
+          _confirm(id, (status, data) => {
+            done(status, data)
+          })
+        } else {
+          done(400, { error: t('error_required') })
+        }
+      })
     })
-  })
+  } else {
+    done(400, { error: t('error_required') })
+  }
 }

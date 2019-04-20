@@ -5,7 +5,7 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth2'
 
 import socialConfig from './socialConfig'
 import joinDelete from '../../lib/data/joinDelete'
-import dataLib from '../../lib/data/functions'
+import dataLib, { read, update } from '../../lib/data/functions'
 import userObj from '../../lib/data/userObj'
 import loose from '../../lib/data/loose'
 import validEmail from '../../lib/data/validEmail'
@@ -19,20 +19,21 @@ import error from '../../lib/debug/error'
 import auth from '../../lib/security/auth'
 import { t, setLocale } from '../../lib/translations'
 import countries from '../../lib/data/countries'
+import { userCreate, userUpdate, userDestroy, userGet, socialSchema, setRoleSchema } from './schema'
 
 const sendEmailConfirmation = (email, done) => {
-  randomID(32, (code) => {
-    if (code) {
+  randomID(32, (token) => {
+    if (token) {
       const subject = t('account_confirm_subject', { company: config.company })
-      const msg = t('account_confirm_message', { company: config.company, baseUrl: config.baseUrl, code: code })
+      const msg = t('account_confirm_message', { company: config.company, baseUrl: config.baseUrl, code: token })
       const obj = {
         email,
-        token: code,
+        token,
         type: config.mainConfirm,
         expiry: Date.now() + 1000 * 60 * 60
       }
 
-      dataLib.create('confirms', code, obj, (err) => {
+      dataLib.create('confirms', token, obj, (err) => {
         if (!err) {
           sendEmail(email, subject, msg, (err) => {
             if (!err.error) {
@@ -52,16 +53,16 @@ const sendEmailConfirmation = (email, done) => {
 }
 
 const sendPhoneConfirmation = (phone, email, done) => {
-  randomID(6, (code) => {
-    if (code) {
-      const msg = t('account_confirm_phone', { company: config.company, code: code })
+  randomID(6, (token) => {
+    if (token) {
+      const msg = t('account_confirm_phone', { company: config.company, code: token })
       const obj = {
         email,
-        token: code,
+        token,
         expiry: Date.now() + 1000 * 60 * 60
       }
 
-      dataLib.create('confirms', code, obj, (err) => {
+      dataLib.create('confirms', token, obj, (err) => {
         if (!err) {
           sendSMS(phone, msg, (err) => {
             if (!err.error) {
@@ -81,22 +82,27 @@ const sendPhoneConfirmation = (phone, email, done) => {
 }
 
 export const get = async (data, done) => {
-  setLocale(data, () => {
-    auth(data, (tokenData) => {
-      if (tokenData) {
-        dataLib.read('users', tokenData.email, (err, userData) => {
-          if (!err && userData) {
-            delete userData.password
-            done(200, userData)
-          } else {
-            done(404, { error: t('error_no_user') })
-          }
-        })
-      } else {
-        done(403, { error: t('unauthorized') })
-      }
+  const valid = await userGet.isValid(data.payload)
+  if (valid) {
+    setLocale(data, () => {
+      auth(data, (tokenData) => {
+        if (tokenData) {
+          dataLib.read('users', tokenData.email, (err, userData) => {
+            if (!err && userData) {
+              delete userData.password
+              done(200, userData)
+            } else {
+              done(404, { error: t('error_no_user') })
+            }
+          })
+        } else {
+          done(403, { error: t('unauthorized') })
+        }
+      })
     })
-  })
+  } else {
+    done(400, { error: t('error_required') })
+  }
 }
 
 const createUser = (obj, done) => {
@@ -121,6 +127,12 @@ const createUser = (obj, done) => {
         confirmed: {
           email: false,
           phone: false
+        },
+        social: {
+          facebook: '',
+          twitter: '',
+          google: '',
+          linkedin: ''
         },
         registeredAt: now,
         updatedAt: now,
@@ -159,33 +171,38 @@ const createUser = (obj, done) => {
 }
 
 export const create = async (data, done) => {
-  setLocale(data, () => {
+  const valid = await userCreate.isValid(data.payload)
+  if (valid) {
     setLocale(data, () => {
-      userObj(data, (u) => {
-        if (u) {
-          if (u.email && u.password && u.tosAgreement) {
-            dataLib.read('users', u.email, (err, _) => {
-              if (err) {
-                createUser(u, (err) => {
-                  if (!err) {
-                    done(200, { status: t('ok') })
-                  } else {
-                    done(500, { error: err })
-                  }
-                })
-              } else {
-                done(400, { error: t('error_user_exists') })
-              }
-            })
+      setLocale(data, () => {
+        userObj(data, (u) => {
+          if (u) {
+            if (u.email && u.password && u.tosAgreement) {
+              dataLib.read('users', u.email, (err, _) => {
+                if (err) {
+                  createUser(u, (err) => {
+                    if (!err) {
+                      done(200, { status: t('ok') })
+                    } else {
+                      done(500, { error: err })
+                    }
+                  })
+                } else {
+                  done(400, { error: t('error_user_exists') })
+                }
+              })
+            } else {
+              done(400, { error: t('error_required') })
+            }
           } else {
             done(400, { error: t('error_required') })
           }
-        } else {
-          done(400, { error: t('error_required') })
-        }
+        })
       })
     })
-  })
+  } else {
+    done(400, { error: t('error_required') })
+  }
 }
 
 const editFields = (u, userData, done) => {
@@ -256,7 +273,7 @@ const editFields = (u, userData, done) => {
 
 const _update = async (data, tokenData, done) => {
   setLocale(data, () => {
-    loose(data, (u) => {
+    loose(data, undefined, (u) => {
       if (u) {
         dataLib.read('users', tokenData.email, (err, userData) => {
           if (!err && userData) {
@@ -296,78 +313,77 @@ const _update = async (data, tokenData, done) => {
 }
 
 export const edit = async (data, done) => {
-  setLocale(data, () => {
-    auth(data, (tokenData) => {
-      if (tokenData) {
-        _update(data, tokenData, (status, outData) => {
-          done(status, outData)
-        })
-      } else {
-        done(403, { error: t('unauthorized') })
-      }
+  const valid = await userUpdate.isValid(data.payload)
+  if (valid) {
+    setLocale(data, () => {
+      auth(data, (tokenData) => {
+        if (tokenData) {
+          _update(data, tokenData, (status, outData) => {
+            done(status, outData)
+          })
+        } else {
+          done(403, { error: t('unauthorized') })
+        }
+      })
     })
-  })
+  } else {
+    done(400, { error: t('error_required') })
+  }
 }
 
 export const destroy = async (data, done) => {
-  setLocale(data, () => {
-    auth(data, (tokenData) => {
-      if (tokenData) {
-        dataLib.read('users', tokenData.email, (err, userData) => {
-          if (!err && userData) {
-            const refs = typeof userData.referred === 'object' && Array.isArray(userData.referred) ? userData.referred : []
-            // delete any associated tables
-            // const orders = typeof userData.orders === 'object' && Array.isArray(userData.orders) ? userData.orders : []
-            dataLib.delete('users', tokenData.email, (err) => {
-              if (!err) {
-                joinDelete('refers', refs, (err) => {
-                  if (err) {
-                    error(err)
-                  } else {
-                    done(200, { status: t('ok') })
-                  }
-                })
-              } else {
-                done(500, { error: t('error_user_delete') })
-              }
-            })
-          } else {
-            done(400, { error: t('error_no_user') })
-          }
-        })
-      } else {
-        done(403, { error: t('unauthorized') })
-      }
+  const valid = await userDestroy.isValid(data.payload)
+  if (valid) {
+    setLocale(data, () => {
+      auth(data, (tokenData) => {
+        if (tokenData) {
+          dataLib.read('users', tokenData.email, (err, userData) => {
+            if (!err && userData) {
+              const refs = typeof userData.referred === 'object' && Array.isArray(userData.referred) ? userData.referred : []
+              // delete any associated tables
+              // const orders = typeof userData.orders === 'object' && Array.isArray(userData.orders) ? userData.orders : []
+              dataLib.delete('users', tokenData.email, (err) => {
+                if (!err) {
+                  joinDelete('refers', refs, (err) => {
+                    if (err) {
+                      error(err)
+                    } else {
+                      done(200, { status: t('ok') })
+                    }
+                  })
+                } else {
+                  done(500, { error: t('error_user_delete') })
+                }
+              })
+            } else {
+              done(400, { error: t('error_no_user') })
+            }
+          })
+        } else {
+          done(403, { error: t('unauthorized') })
+        }
+      })
     })
-  })
+  } else {
+    done(400, { error: t('error_required') })
+  }
 }
 
-export const confirmPhone = () => {
+export const confirmPhone = (data, done) => {
 
 }
 
-export const createFacebook = (data, done) => {
-  /*
-  id
-first_name
-last_name
-middle_name
-name
-name_format
-picture
-short_name
-  */
+const facebook = async (data, done) => {
   passport.use(new FacebookStrategy({
     clientID: socialConfig.facebook.clientID,
     clientSecret: socialConfig.facebook.clientSecret,
     callbackURL: socialConfig.facebook.callbackURL }, (accessToken, refreshToken, profile, done) => {
-    dataLib.read('users', profile.id, (err, _) => {
+    console.log(profile)
+    dataLib.read('users', profile.email, (err, _) => {
       if (err) {
         const now = Date.now()
         // @TODO same providers fields into existing fields; if email exists create user under email
         const u = {
-          provider: 'facebook',
-          oauth: profile.id,
           profile,
           firstName: '',
           lastName: '',
@@ -385,6 +401,12 @@ short_name
           confirmed: {
             email: true,
             phone: false
+          },
+          social: {
+            facebook: profile.id,
+            twitter: '',
+            google: '',
+            linkedin: ''
           },
           registeredAt: now,
           updatedAt: now,
@@ -405,18 +427,17 @@ short_name
   }))
 }
 
-export const createTwitter = (data, done) => {
+const twitter = async (data, done) => {
   passport.use(new TwitterStrategy({
     consumerKey: socialConfig.twitter.consumerKey,
     consumerSecret: socialConfig.twitter.consumerSecret,
     callbackURL: socialConfig.twitter.callbackURL }, (accessToken, refreshToken, profile, done) => {
-    dataLib.read('users', profile.id, (err, _) => {
+    console.log(profile)
+    dataLib.read('users', profile.email, (err, _) => {
       if (err) {
         const now = Date.now()
         // @TODO same providers fields into existing fields; if email exists create user under email
         const u = {
-          provider: 'twitter',
-          oauth: profile.id,
           profile,
           firstName: '',
           lastName: '',
@@ -434,6 +455,12 @@ export const createTwitter = (data, done) => {
           confirmed: {
             email: true,
             phone: false
+          },
+          social: {
+            facebook: '',
+            twitter: profile.id,
+            google: '',
+            linkedin: ''
           },
           registeredAt: now,
           updatedAt: now,
@@ -454,11 +481,12 @@ export const createTwitter = (data, done) => {
   }))
 }
 
-export const createGoogle = (data, done) => {
+const google = async (data, done) => {
   passport.use(new GoogleStrategy({
     clientID: socialConfig.google.clientID,
     clientSecret: socialConfig.google.clientSecret,
     callbackURL: socialConfig.google.callbackURL }, (accessToken, refreshToken, profile, done) => {
+    console.log(profile)
     dataLib.read('users', profile.id, (err, _) => {
       if (err) {
         const now = Date.now()
@@ -484,6 +512,12 @@ export const createGoogle = (data, done) => {
             email: true,
             phone: false
           },
+          social: {
+            facebook: '',
+            twitter: '',
+            google: profile.id,
+            linkedin: ''
+          },
           registeredAt: now,
           updatedAt: now,
           role: 'user'
@@ -501,4 +535,43 @@ export const createGoogle = (data, done) => {
       }
     })
   }))
+}
+
+export const createSocial = async (data, done) => {
+  const valid = await socialSchema.isValid(data.payload)
+  if (valid) {
+    const provider = data.payload.provider
+    switch (provider) {
+      case 'facebook':
+        await facebook(data, (status, data) => done(status, data))
+        break
+      case 'twitter':
+        await twitter(data, (status, data) => done(status, data))
+        break
+      case 'google':
+        await google(data, (status, data) => done(status, data))
+        break
+      default:
+        console.log()
+    }
+  } else {
+    done(400, { error: t('error_required') })
+  }
+}
+
+export const setRole = async (data, done) => {
+  const valid = await setRoleSchema.isValid(data.payload)
+  if (valid) {
+    const tokenData = await read('tokens', data.payload.tokenId).catch(() => done(403, { error: t('unauthorized') }))
+    if (tokenData && tokenData.role === 'admin') {
+      let userData = await read('users', tokenData.email).catch(() => done(403, { error: t('error_no_user') }))
+      userData.role = data.payload.role
+      await update('users', tokenData.email, userData).catch(() => done(403, { error: t('error_cannot_update') }))
+      done(200, { status: t('ok') })
+    } else {
+      done(403, { error: t('unauthorized') })
+    }
+  } else {
+    done(400, { error: t('error_required') })
+  }
 }

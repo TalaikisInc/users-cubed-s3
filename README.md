@@ -4,7 +4,7 @@ This is full user management service API. as [original version](https://github.c
 
 ## Features
 
-* Usrr registration, login, edit, destroy
+* User registration, login, edit, destroy
 * Same CRUD for tokens
 * Minimal referral system
 * Account confirmations
@@ -13,13 +13,12 @@ This is full user management service API. as [original version](https://github.c
 
 ## TODO
 
-* Finish phone confirm
-* Finish json validators
 * Social login
-* Move into async/await (?)
-* Response caching (?)
+* Finish rate limiting
+* Finish phone confirm (+frontend part)
+* Move into async/await
+* Response caching
 * Penetration testing
-* Role system
 * Tests
 * Cleanup for old data in S3
 * Move to Lambda (?)
