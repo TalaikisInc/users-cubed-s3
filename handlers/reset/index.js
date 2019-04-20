@@ -87,28 +87,30 @@ const sendReset = (email, phone, done) => {
   }
 }
 
-export default (data, done) => {
-  userObj(data, (u) => {
-    if (u) {
-      if (u.email) {
-        dataLib.read('users', u.email, (err, userData) => {
-          if (!err && userData) {
-            sendReset(u.email, userData.phone, (err) => {
-              if (!err.error) {
-                done(200, { status: t('ok') })
-              } else {
-                done(500, { error: t('error_email') })
-              }
-            })
-          } else {
-            done(400, { error: t('error_no_user') })
-          }
-        })
+export default async (data, done) => {
+  setLocale(data, () => {
+    userObj(data, (u) => {
+      if (u) {
+        if (u.email) {
+          dataLib.read('users', u.email, (err, userData) => {
+            if (!err && userData) {
+              sendReset(u.email, userData.phone, (err) => {
+                if (!err.error) {
+                  done(200, { status: t('ok') })
+                } else {
+                  done(500, { error: t('error_email') })
+                }
+              })
+            } else {
+              done(400, { error: t('error_no_user') })
+            }
+          })
+        } else {
+          done(400, { error: t('error_required') })
+        }
       } else {
         done(400, { error: t('error_required') })
       }
-    } else {
-      done(400, { error: t('error_required') })
-    }
+    })
   })
 }

@@ -15,7 +15,7 @@ This is full user management service API. as [original version](https://github.c
 
 * Finish phone confirm
 * Finish json validators
-* Finish setLocale
+* Social login
 * Move into async/await (?)
 * Response caching (?)
 * Penetration testing
@@ -23,7 +23,6 @@ This is full user management service API. as [original version](https://github.c
 * Tests
 * Cleanup for old data in S3
 * Move to Lambda (?)
-* Social login
 
 ## Install
 

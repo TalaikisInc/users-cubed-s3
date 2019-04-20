@@ -84,7 +84,7 @@ const _confirm = (id, done) => {
   })
 }
 
-export default (data, done) => {
+export default async (data, done) => {
   setLocale(data, () => {
     token(data, (id) => {
       if (id) {

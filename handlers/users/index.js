@@ -18,6 +18,7 @@ import log from '../../lib/debug/log'
 import error from '../../lib/debug/error'
 import auth from '../../lib/security/auth'
 import { t, setLocale } from '../../lib/translations'
+import countries from '../../lib/data/countries'
 
 const sendEmailConfirmation = (email, done) => {
   randomID(32, (code) => {
@@ -79,20 +80,22 @@ const sendPhoneConfirmation = (phone, email, done) => {
   })
 }
 
-export const get = (data, done) => {
-  auth(data, (tokenData) => {
-    if (tokenData) {
-      dataLib.read('users', tokenData.email, (err, userData) => {
-        if (!err && userData) {
-          delete userData.password
-          done(200, userData)
-        } else {
-          done(404, { error: t('error_no_user') })
-        }
-      })
-    } else {
-      done(403, { error: t('unauthorized') })
-    }
+export const get = async (data, done) => {
+  setLocale(data, () => {
+    auth(data, (tokenData) => {
+      if (tokenData) {
+        dataLib.read('users', tokenData.email, (err, userData) => {
+          if (!err && userData) {
+            delete userData.password
+            done(200, userData)
+          } else {
+            done(404, { error: t('error_no_user') })
+          }
+        })
+      } else {
+        done(403, { error: t('unauthorized') })
+      }
+    })
   })
 }
 
@@ -110,9 +113,9 @@ const createUser = (obj, done) => {
         password: hashedPassword,
         referred: [],
         address: obj.address,
-        zipCode: obj.zipCodev,
+        zipCode: obj.zipCode,
         city: obj.city,
-        country: obj.country,
+        country: obj.country ? countries.filter(i => i === obj.country).country : '',
         dob: obj.dob,
         avatarUrl: obj.avatarUrl,
         confirmed: {
@@ -155,30 +158,32 @@ const createUser = (obj, done) => {
   })
 }
 
-export const create = (data, done) => {
+export const create = async (data, done) => {
   setLocale(data, () => {
-    userObj(data, (u) => {
-      if (u) {
-        if (u.email && u.password && u.tosAgreement) {
-          dataLib.read('users', u.email, (err, _) => {
-            if (err) {
-              createUser(u, (err) => {
-                if (!err) {
-                  done(200, { status: t('ok') })
-                } else {
-                  done(500, { error: err })
-                }
-              })
-            } else {
-              done(400, { error: t('error_user_exists') })
-            }
-          })
+    setLocale(data, () => {
+      userObj(data, (u) => {
+        if (u) {
+          if (u.email && u.password && u.tosAgreement) {
+            dataLib.read('users', u.email, (err, _) => {
+              if (err) {
+                createUser(u, (err) => {
+                  if (!err) {
+                    done(200, { status: t('ok') })
+                  } else {
+                    done(500, { error: err })
+                  }
+                })
+              } else {
+                done(400, { error: t('error_user_exists') })
+              }
+            })
+          } else {
+            done(400, { error: t('error_required') })
+          }
         } else {
           done(400, { error: t('error_required') })
         }
-      } else {
-        done(400, { error: t('error_required') })
-      }
+      })
     })
   })
 }
@@ -249,85 +254,91 @@ const editFields = (u, userData, done) => {
   done(false, userData)
 }
 
-const _update = (data, tokenData, done) => {
-  loose(data, (u) => {
-    if (u) {
-      dataLib.read('users', tokenData.email, (err, userData) => {
-        if (!err && userData) {
-          if (userData.confirmed.email || userData.confirmed.phone) {
-            editFields(u, userData, (err, newData) => {
-              if (!err && newData) {
-                dataLib.update('users', tokenData.email, newData, (err) => {
-                  if (!err) {
-                    dataLib.read('users', tokenData.email, (err, returnUuser) => {
-                      if (!err && returnUuser) {
-                        delete returnUuser.password
-                        done(200, returnUuser)
-                      } else {
-                        done(500, { error: t('error_cannot_read') })
-                      }
-                    })
-                  } else {
-                    done(500, { error: t('error_cannot_update') })
-                  }
-                })
-              } else {
-                done(500, { error: t('error_unknown') })
-              }
-            })
-          } else {
-            done(400, { error: t('error_confirmed') })
-          }
-        } else {
-          done(500, { error: t('error_cannot_read') })
-        }
-      })
-    } else {
-      done(400, { error: t('error_required') })
-    }
-  })
-}
-
-export const edit = (data, done) => {
-  auth(data, (tokenData) => {
-    if (tokenData) {
-      _update(data, tokenData, (status, outData) => {
-        done(status, outData)
-      })
-    } else {
-      done(403, { error: t('unauthorized') })
-    }
-  })
-}
-
-export const destroy = (data, done) => {
-  auth(data, (tokenData) => {
-    if (tokenData) {
-      dataLib.read('users', tokenData.email, (err, userData) => {
-        if (!err && userData) {
-          const refs = typeof userData.referred === 'object' && Array.isArray(userData.referred) ? userData.referred : []
-          // delete any associated tables
-          // const orders = typeof userData.orders === 'object' && Array.isArray(userData.orders) ? userData.orders : []
-          dataLib.delete('users', tokenData.email, (err) => {
-            if (!err) {
-              joinDelete('refers', refs, (err) => {
-                if (err) {
-                  error(err)
+const _update = async (data, tokenData, done) => {
+  setLocale(data, () => {
+    loose(data, (u) => {
+      if (u) {
+        dataLib.read('users', tokenData.email, (err, userData) => {
+          if (!err && userData) {
+            if (userData.confirmed.email || userData.confirmed.phone) {
+              editFields(u, userData, (err, newData) => {
+                if (!err && newData) {
+                  dataLib.update('users', tokenData.email, newData, (err) => {
+                    if (!err) {
+                      dataLib.read('users', tokenData.email, (err, returnUuser) => {
+                        if (!err && returnUuser) {
+                          delete returnUuser.password
+                          done(200, returnUuser)
+                        } else {
+                          done(500, { error: t('error_cannot_read') })
+                        }
+                      })
+                    } else {
+                      done(500, { error: t('error_cannot_update') })
+                    }
+                  })
                 } else {
-                  done(200, { status: t('ok') })
+                  done(500, { error: t('error_unknown') })
                 }
               })
             } else {
-              done(500, { error: t('error_user_delete') })
+              done(400, { error: t('error_confirmed') })
             }
-          })
-        } else {
-          done(400, { error: t('error_no_user') })
-        }
-      })
-    } else {
-      done(403, { error: t('unauthorized') })
-    }
+          } else {
+            done(500, { error: t('error_cannot_read') })
+          }
+        })
+      } else {
+        done(400, { error: t('error_required') })
+      }
+    })
+  })
+}
+
+export const edit = async (data, done) => {
+  setLocale(data, () => {
+    auth(data, (tokenData) => {
+      if (tokenData) {
+        _update(data, tokenData, (status, outData) => {
+          done(status, outData)
+        })
+      } else {
+        done(403, { error: t('unauthorized') })
+      }
+    })
+  })
+}
+
+export const destroy = async (data, done) => {
+  setLocale(data, () => {
+    auth(data, (tokenData) => {
+      if (tokenData) {
+        dataLib.read('users', tokenData.email, (err, userData) => {
+          if (!err && userData) {
+            const refs = typeof userData.referred === 'object' && Array.isArray(userData.referred) ? userData.referred : []
+            // delete any associated tables
+            // const orders = typeof userData.orders === 'object' && Array.isArray(userData.orders) ? userData.orders : []
+            dataLib.delete('users', tokenData.email, (err) => {
+              if (!err) {
+                joinDelete('refers', refs, (err) => {
+                  if (err) {
+                    error(err)
+                  } else {
+                    done(200, { status: t('ok') })
+                  }
+                })
+              } else {
+                done(500, { error: t('error_user_delete') })
+              }
+            })
+          } else {
+            done(400, { error: t('error_no_user') })
+          }
+        })
+      } else {
+        done(403, { error: t('unauthorized') })
+      }
+    })
   })
 }
 
@@ -336,6 +347,16 @@ export const confirmPhone = () => {
 }
 
 export const createFacebook = (data, done) => {
+  /*
+  id
+first_name
+last_name
+middle_name
+name
+name_format
+picture
+short_name
+  */
   passport.use(new FacebookStrategy({
     clientID: socialConfig.facebook.clientID,
     clientSecret: socialConfig.facebook.clientSecret,
