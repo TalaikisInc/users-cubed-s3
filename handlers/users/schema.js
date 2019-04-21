@@ -1,6 +1,6 @@
 import { object, string, bool } from 'yup'
 
-export const userCreate = object().shape({
+export const createSchema = object().shape({
   email: string().required().email(),
   password: string().required().min(12),
   tosAgreement: bool().required(),

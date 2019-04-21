@@ -1,10 +1,10 @@
 import { object, string } from 'yup'
 
-export const tokenCreate = object().shape({
+export const createSchema = object().shape({
   email: string().required().email(),
   password: string().required().min(12),
   key: string().required(),
-  action: string().required().oneOf(['TOKEN_GET']),
+  action: string().required().oneOf(['TOKEN_CREATE']),
   locale: string().required().oneOf(['en', 'fr'])
 })
 
@@ -25,6 +25,6 @@ export const tokenDestroy = object().shape({
 export const tokenGet = object().shape({
   tokenId: string().required().length(64),
   key: string().required(),
-  action: string().required().oneOf(['REFER_USE']),
+  action: string().required().oneOf(['TOKEN_GET']),
   locale: string().required().oneOf(['en', 'fr'])
 })

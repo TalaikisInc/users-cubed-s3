@@ -5,78 +5,58 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth2'
 
 import socialConfig from './socialConfig'
 import joinDelete from '../../lib/data/joinDelete'
-import dataLib, { read, update } from '../../lib/data/functions'
-import userObj from '../../lib/data/userObj'
-import loose from '../../lib/data/loose'
+import { read, update, create, destroy } from '../../lib/data/functions'
+import { user } from '../../lib/data/userObj'
+import { looseAsync } from '../../lib/data/loose'
 import validEmail from '../../lib/data/validEmail'
-import hash from '../../lib/security/hash'
+import { hashAsync } from '../../lib/security/hash'
 import config from '../../config'
-import randomID from '../../lib/security/randomID'
+import { randomIDAsync } from '../../lib/security/randomID'
 import sendEmail from '../../lib/email'
 import sendSMS from '../../lib/phone'
 import log from '../../lib/debug/log'
 import error from '../../lib/debug/error'
-import auth from '../../lib/security/auth'
-import { t, setLocale } from '../../lib/translations'
+import { authAsync } from '../../lib/security/auth'
+import { t, setLocaleAsync } from '../../lib/translations'
 import countries from '../../lib/data/countries'
-import { userCreate, userUpdate, userDestroy, userGet, socialSchema, setRoleSchema } from './schema'
+import { createSchema, userUpdate, userDestroy, userGet, socialSchema, setRoleSchema } from './schema'
 
-const sendEmailConfirmation = (email, done) => {
-  randomID(32, (token) => {
-    if (token) {
-      const subject = t('account_confirm_subject', { company: config.company })
-      const msg = t('account_confirm_message', { company: config.company, baseUrl: config.baseUrl, code: token })
-      const obj = {
-        email,
-        token,
-        type: config.mainConfirm,
-        expiry: Date.now() + 1000 * 60 * 60
-      }
+const sendEmailConfirmation = async (email, done) => {
+  const token = await randomIDAsync(32).catch(() => done(t('error_confirmation_generate')))
+  const subject = t('account_confirm_subject', { company: config.company })
+  const msg = t('account_confirm_message', { company: config.company, baseUrl: config.baseUrl, code: token })
+  const obj = {
+    email,
+    token,
+    type: config.mainConfirm,
+    expiry: Date.now() + 1000 * 60 * 60
+  }
 
-      dataLib.create('confirms', token, obj, (err) => {
-        if (!err) {
-          sendEmail(email, subject, msg, (err) => {
-            if (!err.error) {
-              done(false)
-            } else {
-              done(err)
-            }
-          })
-        } else {
-          done(t('error_confirmation_save'))
-        }
-      })
+  await create('confirms', token, obj).catch(() => done(t('error_confirmation_save')))
+  sendEmail(email, subject, msg, (err) => {
+    if (!err.error) {
+      done(false)
     } else {
-      done(t('error_confirmation_generate'))
+      done(err)
     }
   })
 }
 
-const sendPhoneConfirmation = (phone, email, done) => {
-  randomID(6, (token) => {
-    if (token) {
-      const msg = t('account_confirm_phone', { company: config.company, code: token })
-      const obj = {
-        email,
-        token,
-        expiry: Date.now() + 1000 * 60 * 60
-      }
+const sendPhoneConfirmation = async (phone, email, done) => {
+  const token = await randomIDAsync(6).catch(() => done(t('error_confirmation_generate')))
+  const msg = t('account_confirm_phone', { company: config.company, code: token })
+  const obj = {
+    email,
+    token,
+    expiry: Date.now() + 1000 * 60 * 60
+  }
 
-      dataLib.create('confirms', token, obj, (err) => {
-        if (!err) {
-          sendSMS(phone, msg, (err) => {
-            if (!err.error) {
-              done(false)
-            } else {
-              done(err)
-            }
-          })
-        } else {
-          done(t('error_confirmation_save'))
-        }
-      })
+  await create('confirms', token, obj).catch(() => done(t('error_confirmation_save')))
+  sendSMS(phone, msg, (err) => {
+    if (!err.error) {
+      done(false)
     } else {
-      done(t('error_confirmation_generate'))
+      done(err)
     }
   })
 }
@@ -84,128 +64,96 @@ const sendPhoneConfirmation = (phone, email, done) => {
 export const get = async (data, done) => {
   const valid = await userGet.isValid(data.payload)
   if (valid) {
-    setLocale(data, () => {
-      auth(data, (tokenData) => {
-        if (tokenData) {
-          dataLib.read('users', tokenData.email, (err, userData) => {
-            if (!err && userData) {
-              delete userData.password
-              done(200, userData)
-            } else {
-              done(404, { error: t('error_no_user') })
-            }
-          })
-        } else {
-          done(403, { error: t('unauthorized') })
-        }
-      })
-    })
+    await setLocaleAsync(data)
+    const tokenData = await authAsync(data).catch(() => done(403, { error: t('unauthorized') }))
+    const userData = await read('users', tokenData.email).catch(() => done(404, { error: t('error_no_user') }))
+    delete userData.password
+    done(200, userData)
   } else {
     done(400, { error: t('error_required') })
   }
 }
 
-const createUser = (obj, done) => {
-  hash(obj.password, (hashedPassword) => {
-    if (hashedPassword) {
-      const now = Date.now()
-      const newObj = {
-        firstName: obj.firstName ? obj.firstName : '',
-        lastName: obj.lastName ? obj.lastName : '',
-        dialCoode: obj.dialCode,
-        phone: obj.phone ? obj.phone : '',
-        email: obj.email,
-        tosAgreement: obj.tosAgreement,
-        password: hashedPassword,
-        referred: [],
-        address: obj.address,
-        zipCode: obj.zipCode,
-        city: obj.city,
-        country: obj.country ? countries.filter(i => i === obj.country).country : '',
-        dob: obj.dob,
-        avatarUrl: obj.avatarUrl,
-        confirmed: {
-          email: false,
-          phone: false
-        },
-        social: {
-          facebook: '',
-          twitter: '',
-          google: '',
-          linkedin: ''
-        },
-        registeredAt: now,
-        updatedAt: now,
-        role: 'user'
-      }
+const createUser = async (obj, done) => {
+  const hashedPassword = await hashAsync(obj.password).catch(() => done(t('error_hash')))
+  if (hashedPassword) {
+    const now = Date.now()
+    const newObj = {
+      firstName: obj.firstName ? obj.firstName : '',
+      lastName: obj.lastName ? obj.lastName : '',
+      dialCoode: obj.dialCode,
+      phone: obj.phone ? obj.phone : '',
+      email: obj.email,
+      tosAgreement: obj.tosAgreement,
+      password: hashedPassword,
+      referred: [],
+      address: obj.address,
+      zipCode: obj.zipCode,
+      city: obj.city,
+      country: obj.country ? countries.filter(i => i === obj.country).country : '',
+      dob: obj.dob,
+      avatarUrl: obj.avatarUrl,
+      confirmed: {
+        email: false,
+        phone: false
+      },
+      social: {
+        facebook: '',
+        twitter: '',
+        google: '',
+        linkedin: ''
+      },
+      registeredAt: now,
+      updatedAt: now,
+      role: 'user'
+    }
 
-      dataLib.create('users', obj.email, newObj, (err) => {
-        if (!err) {
-          if (config.mainConfirm === 'email') {
-            sendEmailConfirmation(obj.email, (err) => {
-              if (!err.error) {
-                done(false)
-              } else {
-                done(t('error_email'))
-              }
-            })
-          }
-
-          if (config.mainConfirm === 'phone') {
-            sendPhoneConfirmation(obj.phone, obj.email, (err) => {
-              if (!err.error) {
-                done(false)
-              } else {
-                done(t('error_sms'))
-              }
-            })
-          }
+    await create('users', obj.email, newObj).catch(() => done(t('error_user_create')))
+    if (config.mainConfirm === 'email') {
+      await sendEmailConfirmation(obj.email, (err) => {
+        if (!err.error) {
+          done(false)
         } else {
-          done(t('error_user_create'))
+          done(t('error_email'))
+        }
+      })
+    }
+
+    if (config.mainConfirm === 'phone') {
+      await sendPhoneConfirmation(obj.phone, obj.email, (err) => {
+        if (!err.error) {
+          done(false)
+        } else {
+          done(t('error_sms'))
+        }
+      })
+    }
+  }
+}
+
+export const gen = async (data, done) => {
+  const valid = await createSchema.isValid(data.payload)
+  if (valid) {
+    await setLocaleAsync(data)
+    const u = await user(data).catch(() => done(400, { error: t('error_required') }))
+    if (u.email && u.password && u.tosAgreement) {
+      await read('users', u.email).catch(() => done(400, { error: t('error_user_exists') }))
+      await createUser(u, (err) => {
+        if (!err) {
+          done(200, { status: t('ok') })
+        } else {
+          done(500, { error: err })
         }
       })
     } else {
-      done(t('error_hash'))
+      done(400, { error: t('error_required') })
     }
-  })
-}
-
-export const create = async (data, done) => {
-  const valid = await userCreate.isValid(data.payload)
-  if (valid) {
-    setLocale(data, () => {
-      setLocale(data, () => {
-        userObj(data, (u) => {
-          if (u) {
-            if (u.email && u.password && u.tosAgreement) {
-              dataLib.read('users', u.email, (err, _) => {
-                if (err) {
-                  createUser(u, (err) => {
-                    if (!err) {
-                      done(200, { status: t('ok') })
-                    } else {
-                      done(500, { error: err })
-                    }
-                  })
-                } else {
-                  done(400, { error: t('error_user_exists') })
-                }
-              })
-            } else {
-              done(400, { error: t('error_required') })
-            }
-          } else {
-            done(400, { error: t('error_required') })
-          }
-        })
-      })
-    })
   } else {
     done(400, { error: t('error_required') })
   }
 }
 
-const editFields = (u, userData, done) => {
+const editFields = async (u, userData, done) => {
   if (u.firstName !== userData.firstName) {
     userData.firstName = u.firstName
   }
@@ -242,6 +190,10 @@ const editFields = (u, userData, done) => {
     userData.dialCode = u.dialCode
   }
 
+  if (u.phone !== userData.phone) {
+    userData.phone = u.phone
+  }
+
   if (u.email !== userData.email) {
     validEmail(u.email, (email) => {
       if (email) {
@@ -260,109 +212,62 @@ const editFields = (u, userData, done) => {
   userData.updatedAt = Date.now()
 
   if (u.password) {
-    hash(u.password, (hashed) => {
-      if (hashed) {
-        userData.password = hashed
-      } else {
-        done(t('error_hash'))
-      }
-    })
+    const hashed = await hashAsync(u.password).catch(() => done(t('error_hash')))
+    if (hashed) {
+      userData.password = hashed
+    }
   }
   done(false, userData)
 }
 
 const _update = async (data, tokenData, done) => {
-  setLocale(data, () => {
-    loose(data, undefined, (u) => {
-      if (u) {
-        dataLib.read('users', tokenData.email, (err, userData) => {
-          if (!err && userData) {
-            if (userData.confirmed.email || userData.confirmed.phone) {
-              editFields(u, userData, (err, newData) => {
-                if (!err && newData) {
-                  dataLib.update('users', tokenData.email, newData, (err) => {
-                    if (!err) {
-                      dataLib.read('users', tokenData.email, (err, returnUuser) => {
-                        if (!err && returnUuser) {
-                          delete returnUuser.password
-                          done(200, returnUuser)
-                        } else {
-                          done(500, { error: t('error_cannot_read') })
-                        }
-                      })
-                    } else {
-                      done(500, { error: t('error_cannot_update') })
-                    }
-                  })
-                } else {
-                  done(500, { error: t('error_unknown') })
-                }
-              })
-            } else {
-              done(400, { error: t('error_confirmed') })
-            }
-          } else {
-            done(500, { error: t('error_cannot_read') })
-          }
-        })
+  const u = await looseAsync(data, undefined).catch(() => done(400, { error: t('error_required') }))
+  const userData = await read('users', tokenData.email).catch(() => done(500, { error: t('error_cannot_read') }))
+  if (userData.confirmed.email || userData.confirmed.phone) {
+    await editFields(u, userData, async (err, newData) => {
+      if (!err && newData) {
+        await update('users', tokenData.email, newData).catch(() => done(500, { error: t('error_cannot_update') }))
+        const returnUuser = await read('users', tokenData.email).catch(() => done(500, { error: t('error_cannot_read') }))
+        delete returnUuser.password
+        done(200, returnUuser)
       } else {
-        done(400, { error: t('error_required') })
+        done(500, { error: t('error_unknown') })
       }
     })
-  })
+  } else {
+    done(400, { error: t('error_confirmed') })
+  }
 }
 
 export const edit = async (data, done) => {
   const valid = await userUpdate.isValid(data.payload)
   if (valid) {
-    setLocale(data, () => {
-      auth(data, (tokenData) => {
-        if (tokenData) {
-          _update(data, tokenData, (status, outData) => {
-            done(status, outData)
-          })
-        } else {
-          done(403, { error: t('unauthorized') })
-        }
-      })
+    await setLocaleAsync(data)
+    const tokenData = await authAsync(data).catch(() => done(403, { error: t('unauthorized') }))
+    await _update(data, tokenData, (status, outData) => {
+      done(status, outData)
     })
   } else {
     done(400, { error: t('error_required') })
   }
 }
 
-export const destroy = async (data, done) => {
+export const destroyUser = async (data, done) => {
   const valid = await userDestroy.isValid(data.payload)
   if (valid) {
-    setLocale(data, () => {
-      auth(data, (tokenData) => {
-        if (tokenData) {
-          dataLib.read('users', tokenData.email, (err, userData) => {
-            if (!err && userData) {
-              const refs = typeof userData.referred === 'object' && Array.isArray(userData.referred) ? userData.referred : []
-              // delete any associated tables
-              // const orders = typeof userData.orders === 'object' && Array.isArray(userData.orders) ? userData.orders : []
-              dataLib.delete('users', tokenData.email, (err) => {
-                if (!err) {
-                  joinDelete('refers', refs, (err) => {
-                    if (err) {
-                      error(err)
-                    } else {
-                      done(200, { status: t('ok') })
-                    }
-                  })
-                } else {
-                  done(500, { error: t('error_user_delete') })
-                }
-              })
-            } else {
-              done(400, { error: t('error_no_user') })
-            }
-          })
-        } else {
-          done(403, { error: t('unauthorized') })
-        }
-      })
+    await setLocaleAsync(data)
+    const tokenData = await authAsync(data).catch(() => done(403, { error: t('unauthorized') }))
+    const userData = await read('users', tokenData.email).catch(() => done(400, { error: t('error_no_user') }))
+    const refs = typeof userData.referred === 'object' && Array.isArray(userData.referred) ? userData.referred : []
+    // delete any associated tables
+    // const orders = typeof userData.orders === 'object' && Array.isArray(userData.orders) ? userData.orders : []
+    await destroy('users', tokenData.email).catch(() => done(500, { error: t('error_user_delete') }))
+    joinDelete('refers', refs, (err) => {
+      if (err) {
+        error(err)
+      } else {
+        done(200, { status: t('ok') })
+      }
     })
   } else {
     done(400, { error: t('error_required') })
@@ -377,53 +282,50 @@ const facebook = async (data, done) => {
   passport.use(new FacebookStrategy({
     clientID: socialConfig.facebook.clientID,
     clientSecret: socialConfig.facebook.clientSecret,
-    callbackURL: socialConfig.facebook.callbackURL }, (accessToken, refreshToken, profile, done) => {
+    callbackURL: socialConfig.facebook.callbackURL }, async (accessToken, refreshToken, profile, done) => {
     console.log(profile)
-    dataLib.read('users', profile.email, (err, _) => {
-      if (err) {
-        const now = Date.now()
-        // @TODO same providers fields into existing fields; if email exists create user under email
-        const u = {
-          profile,
-          firstName: '',
-          lastName: '',
-          dialCoode: '',
-          phone: '',
-          email: '',
-          tosAgreement: true,
-          referred: [],
-          address: '',
-          zipCode: '',
-          city: '',
-          country: '',
-          dob: '',
-          avatarUrl: '',
-          confirmed: {
-            email: true,
-            phone: false
-          },
-          social: {
-            facebook: profile.id,
-            twitter: '',
-            google: '',
-            linkedin: ''
-          },
-          registeredAt: now,
-          updatedAt: now,
-          role: 'user'
-        }
-
-        createUser(u, (err) => {
-          if (!err) {
-            done(200, { status: t('ok') })
-          } else {
-            done(500, { error: err })
-          }
-        })
-      } else {
-        done(400, { error: t('error_user_exists') })
+    const userData = await read('users', profile.email).catch(async () => {
+      const now = Date.now()
+      const u = {
+        profile,
+        firstName: '',
+        lastName: '',
+        dialCoode: '',
+        phone: '',
+        email: '',
+        tosAgreement: true,
+        referred: [],
+        address: '',
+        zipCode: '',
+        city: '',
+        country: '',
+        dob: '',
+        avatarUrl: '',
+        confirmed: {
+          email: true,
+          phone: false
+        },
+        social: {
+          facebook: profile.id,
+          twitter: '',
+          google: '',
+          linkedin: ''
+        },
+        registeredAt: now,
+        updatedAt: now,
+        role: 'user'
       }
+
+      await createUser(u, (err) => {
+        if (!err) {
+          done(200, { status: t('ok') })
+        } else {
+          done(500, { error: err })
+        }
+      })
     })
+    userData.social.facebook = profile.id
+    // update existing user
   }))
 }
 
@@ -431,53 +333,50 @@ const twitter = async (data, done) => {
   passport.use(new TwitterStrategy({
     consumerKey: socialConfig.twitter.consumerKey,
     consumerSecret: socialConfig.twitter.consumerSecret,
-    callbackURL: socialConfig.twitter.callbackURL }, (accessToken, refreshToken, profile, done) => {
+    callbackURL: socialConfig.twitter.callbackURL }, async (accessToken, refreshToken, profile, done) => {
     console.log(profile)
-    dataLib.read('users', profile.email, (err, _) => {
-      if (err) {
-        const now = Date.now()
-        // @TODO same providers fields into existing fields; if email exists create user under email
-        const u = {
-          profile,
-          firstName: '',
-          lastName: '',
-          dialCoode: '',
-          phone: '',
-          email: '',
-          tosAgreement: true,
-          referred: [],
-          address: '',
-          zipCode: '',
-          city: '',
-          country: '',
-          dob: '',
-          avatarUrl: '',
-          confirmed: {
-            email: true,
-            phone: false
-          },
-          social: {
-            facebook: '',
-            twitter: profile.id,
-            google: '',
-            linkedin: ''
-          },
-          registeredAt: now,
-          updatedAt: now,
-          role: 'user'
-        }
-
-        createUser(u, (err) => {
-          if (!err) {
-            done(200, { status: t('ok') })
-          } else {
-            done(500, { error: err })
-          }
-        })
-      } else {
-        done(400, { error: t('error_user_exists') })
+    const userData = await read('users', profile.email).catch(async () => {
+      const now = Date.now()
+      const u = {
+        profile,
+        firstName: '',
+        lastName: '',
+        dialCoode: '',
+        phone: '',
+        email: '',
+        tosAgreement: true,
+        referred: [],
+        address: '',
+        zipCode: '',
+        city: '',
+        country: '',
+        dob: '',
+        avatarUrl: '',
+        confirmed: {
+          email: true,
+          phone: false
+        },
+        social: {
+          facebook: '',
+          twitter: profile.id,
+          google: '',
+          linkedin: ''
+        },
+        registeredAt: now,
+        updatedAt: now,
+        role: 'user'
       }
+
+      await createUser(u, (err) => {
+        if (!err) {
+          done(200, { status: t('ok') })
+        } else {
+          done(500, { error: err })
+        }
+      })
     })
+    userData.social.twitter = profile.id
+    // update existing user
   }))
 }
 
@@ -485,55 +384,50 @@ const google = async (data, done) => {
   passport.use(new GoogleStrategy({
     clientID: socialConfig.google.clientID,
     clientSecret: socialConfig.google.clientSecret,
-    callbackURL: socialConfig.google.callbackURL }, (accessToken, refreshToken, profile, done) => {
+    callbackURL: socialConfig.google.callbackURL }, async (accessToken, refreshToken, profile, done) => {
     console.log(profile)
-    dataLib.read('users', profile.id, (err, _) => {
-      if (err) {
-        const now = Date.now()
-        // @TODO same providers fields into existing fields; if email exists create user under email
-        const u = {
-          provider: 'google',
-          oauth: profile.id,
-          profile,
-          firstName: '',
-          lastName: '',
-          dialCoode: '',
-          phone: '',
-          email: '',
-          tosAgreement: true,
-          referred: [],
-          address: '',
-          zipCode: '',
-          city: '',
-          country: '',
-          dob: '',
-          avatarUrl: '',
-          confirmed: {
-            email: true,
-            phone: false
-          },
-          social: {
-            facebook: '',
-            twitter: '',
-            google: profile.id,
-            linkedin: ''
-          },
-          registeredAt: now,
-          updatedAt: now,
-          role: 'user'
-        }
-
-        createUser(u, (err) => {
-          if (!err) {
-            done(200, { status: t('ok') })
-          } else {
-            done(500, { error: err })
-          }
-        })
-      } else {
-        done(400, { error: t('error_user_exists') })
+    const userData = await read('users', profile.email).catch(async () => {
+      const now = Date.now()
+      const u = {
+        profile,
+        firstName: '',
+        lastName: '',
+        dialCoode: '',
+        phone: '',
+        email: '',
+        tosAgreement: true,
+        referred: [],
+        address: '',
+        zipCode: '',
+        city: '',
+        country: '',
+        dob: '',
+        avatarUrl: '',
+        confirmed: {
+          email: true,
+          phone: false
+        },
+        social: {
+          facebook: '',
+          twitter: '',
+          google: profile.id,
+          linkedin: ''
+        },
+        registeredAt: now,
+        updatedAt: now,
+        role: 'user'
       }
+
+      await createUser(u, (err) => {
+        if (!err) {
+          done(200, { status: t('ok') })
+        } else {
+          done(500, { error: err })
+        }
+      })
     })
+    userData.social.google = profile.id
+    // update existing user
   }))
 }
 

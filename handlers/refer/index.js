@@ -1,14 +1,14 @@
-import tokenHeader from '../../lib/data/tokenHeader'
+import { tokenHeaderAsync } from '../../lib/data/tokenHeader'
 import config from '../../config'
-import dataLib from '../../lib/data/functions'
-import userObj from '../../lib/data/userObj'
+import { create, read, update } from '../../lib/data/functions'
+import { user } from '../../lib/data/userObj'
 import finalizeRequest from '../../lib/data/finalizeRequest'
 import sendEmail from '../../lib/email'
 import uuidv4 from '../../lib/security/uuidv4'
-import { t, setLocale } from '../../lib/translations'
+import { t, setLocaleAsync } from '../../lib/translations'
 import { referSchema, useSchema, registerSchema } from './schema'
 
-const generateToken = (email, done) => {
+const generateToken = async (email, done) => {
   const token = uuidv4()
   const obj = {
     id: token,
@@ -17,13 +17,8 @@ const generateToken = (email, done) => {
     finalized: false
   }
 
-  dataLib.create('refers', token, obj, (err) => {
-    if (!err) {
-      done(false, token)
-    } else {
-      done(true, err)
-    }
-  })
+  await create('refers', token, obj).catch(() => done(true, 'Error saving ref.'))
+  done(false, token)
 }
 
 const sendReferEmail = (email, token, referringUser, done) => {
@@ -67,34 +62,18 @@ const _generateToken = (u, userData, refEmail, done) => {
 export const refer = async (data, done) => {
   const valid = await referSchema.isValid(data.payload)
   if (valid) {
-    setLocale(data, () => {
-      tokenHeader(data, (authToken) => {
-        if (authToken) {
-          userObj(data, (u) => {
-            if (u) {
-              const refEmail = typeof data.payload.to === 'string' && data.payload.to.indexOf('@') > -1 ? data.payload.to.trim() : false
-              if (u.email && refEmail) {
-                dataLib.read('users', u.email, (err, userData) => {
-                  if (!err && data) {
-                    _generateToken(u, userData, refEmail, (status, data) => {
-                      done(status, data)
-                    })
-                  } else {
-                    done(400, { error: t('error_no_user') })
-                  }
-                })
-              } else {
-                done(400, { error: t('error_required') })
-              }
-            } else {
-              done(400, { error: t('error_required') })
-            }
-          })
-        } else {
-          done(403, { error: t('error_wrong_token') })
-        }
+    await setLocaleAsync(data)
+    await tokenHeaderAsync(data).catch(() => done(403, { error: t('error_wrong_token') }))
+    const u = await user(data).catch(() => done(400, { error: t('error_required') }))
+    const refEmail = typeof data.payload.to === 'string' && data.payload.to.indexOf('@') > -1 ? data.payload.to.trim() : false
+    if (u.email && refEmail) {
+      const userData = await read('users', u.email).catch(() => done(400, { error: t('error_no_user') }))
+      _generateToken(u, userData, refEmail, (status, data) => {
+        done(status, data)
       })
-    })
+    } else {
+      done(400, { error: t('error_required') })
+    }
   } else {
     done(400, { error: t('error_required') })
   }
@@ -108,21 +87,15 @@ export const refer = async (data, done) => {
 export const use = async (data, done) => {
   const valid = await useSchema.isValid(data.payload)
   if (valid) {
-    setLocale(data, () => {
-      const token = typeof data.payload.token === 'string' && data.payload.token.length === 36 ? data.payload.token : false
-      if (token) {
-        dataLib.read('refers', token, (err, refData) => {
-          if (!err && refData) {
-            refData.used = true
-            finalizeRequest('refers', token, 'update', done, refData)
-          } else {
-            done(403, { error: t('error_token_notfound') })
-          }
-        })
-      } else {
-        done(400, { error: t('error_required') })
-      }
-    })
+    await setLocaleAsync(data)
+    const token = typeof data.payload.token === 'string' && data.payload.token.length === 36 ? data.payload.token : false
+    if (token) {
+      let refData = await read('refers', token).catch(() => done(403, { error: t('error_token_notfound') }))
+      refData.used = true
+      finalizeRequest('refers', token, 'update', done, refData)
+    } else {
+      done(400, { error: t('error_required') })
+    }
   } else {
     done(400, { error: t('error_required') })
   }
@@ -136,41 +109,21 @@ export const use = async (data, done) => {
 export const register = async (data, done) => {
   const valid = await registerSchema.isValid(data.payload)
   if (valid) {
-    setLocale(data, () => {
-      const token = typeof data.payload.token === 'string' && data.payload.token.length === 36 ? data.payload.token : false
-      const email = data.payload.from
-      if (token && email) {
-        dataLib.read('users', email, (err, userData) => {
-          if (!err && userData) {
-            dataLib.read('refers', token, (err, tokenData) => {
-              if (!err && tokenData) {
-                if (!userData.referred.includes(token)) {
-                  userData.referred.push(token)
-                  userData.updatedAt = Date.now()
-                  dataLib.update('users', email, userData, (err) => {
-                    if (!err) {
-                      tokenData.finalized = true
-                      finalizeRequest('refers', token, 'update', done, tokenData)
-                    } else {
-                      done(500, { error: t('error_cannot_update') })
-                    }
-                  })
-                } else {
-                  done(400, { error: t('error_ref_reg') })
-                }
-              } else {
-                done(400, { error: t('error_token_notfound') })
-              }
-            })
-          } else {
-            done(400, { error: t('error_no_user') })
-          }
-        })
-      } else {
-        done(400, { error: t('error_required') })
+    await setLocaleAsync(data)
+    const token = typeof data.payload.token === 'string' && data.payload.token.length === 36 ? data.payload.token : false
+    const email = data.payload.from
+    if (token && email) {
+      const userData = await read('users', email).catch(() => done(400, { error: t('error_no_user') }))
+      const tokenData = await read('refers', token).catch(() => done(400, { error: t('error_token_notfound') }))
+      if (!userData.referred.includes(token)) {
+        userData.referred.push(token)
+        userData.updatedAt = Date.now()
+        await update('users', email, userData).catch(() => done(500, { error: t('error_cannot_update') }))
+        tokenData.finalized = true
+        finalizeRequest('refers', token, 'update', done, tokenData)
       }
-    })
-  } else {
-    done(400, { error: t('error_required') })
+    } else {
+      done(400, { error: t('error_required') })
+    }
   }
 }

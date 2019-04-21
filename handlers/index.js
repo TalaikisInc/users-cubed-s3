@@ -1,14 +1,14 @@
 import ACTIONS from '../actions'
 
 export default {
-  [ACTIONS.USER.CREATE]: require('./users').create,
+  [ACTIONS.USER.CREATE]: require('./users').gen,
   [ACTIONS.USER.CREATE_SOCIAL]: require('./users').createSocial,
   [ACTIONS.USER.EDIT]: require('./users').edit,
-  [ACTIONS.USER.DESTROY]: require('./users').destroy,
+  [ACTIONS.USER.DESTROY]: require('./users').destroyUser,
   [ACTIONS.USER.GET]: require('./users').get,
   [ACTIONS.USER.CONFIRM_PHONE]: require('./users').confirmPhone,
   [ACTIONS.USER.SET_ROLE]: require('./users').setRole,
-  [ACTIONS.TOKEN.CREATE]: require('./token').create,
+  [ACTIONS.TOKEN.CREATE]: require('./token').gen,
   [ACTIONS.TOKEN.EXTEND]: require('./token').extend,
   [ACTIONS.TOKEN.DESTROY]: require('./token').destroy,
   [ACTIONS.TOKEN.GET]: require('./token').get,

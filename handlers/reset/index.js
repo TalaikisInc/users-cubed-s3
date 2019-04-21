@@ -1,76 +1,56 @@
 import config from '../../config'
-import dataLib from '../../lib/data/functions'
-import userObj from '../../lib/data/userObj'
-import randomID from '../../lib/security/randomID'
+import { read, create } from '../../lib/data/functions'
+import { user } from '../../lib/data/userObj'
+import { randomIDAsync } from '../../lib/security/randomID'
 import sendEmail from '../../lib/email'
 import sendSMS from '../../lib/phone'
-import { t, setLocale } from '../../lib/translations'
+import { t, setLocaleAsync } from '../../lib/translations'
 import { resetSchema } from './schema'
 
-const sendEmailReset = (email, done) => {
-  randomID(32, (code) => {
-    if (code) {
-      const subject = t('reset_email', { company: config.company })
-      const msg = t('reset_email_text', { baseUrl: config.baseUrl, cod: code })
-      const obj = {
-        email,
-        type: 'reset',
-        token: code,
-        expiry: Date.now() + 1000 * 60 * 60
-      }
+const sendEmailReset = async (email, done) => {
+  const token = await randomIDAsync(32).catch(() => done(t('error_confirmation_generate')))
+  const subject = t('reset_email', { company: config.company })
+  const msg = t('reset_email_text', { baseUrl: config.baseUrl, cod: token })
+  const obj = {
+    email,
+    type: 'reset',
+    token: token,
+    expiry: Date.now() + 1000 * 60 * 60
+  }
 
-      dataLib.create('confirms', code, obj, (err) => {
-        if (!err) {
-          sendEmail(email, subject, msg, (err) => {
-            if (!err.error) {
-              done(false)
-            } else {
-              done(err)
-            }
-          })
-        } else {
-          done(t('error_confirmation_save'))
-        }
-      })
+  await create('confirms', token, obj).catch(() => done(t('error_confirmation_save')))
+  sendEmail(email, subject, msg, (err) => {
+    if (!err.error) {
+      done(false)
     } else {
-      done(t('error_confirmation_generate'))
+      done(err)
     }
   })
 }
 
-const sendPhoneConfirmation = (phone, email, done) => {
-  randomID(6, (code) => {
-    if (code) {
-      const msg = t('account_reset_phone', { company: config.company, code: code })
-      const obj = {
-        email,
-        type: 'reset',
-        token: code,
-        expiry: Date.now() + 1000 * 60 * 60
-      }
+const sendPhoneConfirmation = async (phone, email, done) => {
+  const token = await randomIDAsync(6).catch(() => done(t('error_confirmation_generate')))
+  const msg = t('account_reset_phone', { company: config.company, code: token })
+  const obj = {
+    email,
+    type: 'reset',
+    token: token,
+    expiry: Date.now() + 1000 * 60 * 60
+  }
 
-      dataLib.create('confirms', code, obj, (err) => {
-        if (!err) {
-          sendSMS(phone, msg, (err) => {
-            if (!err.error) {
-              done(false)
-            } else {
-              done(err)
-            }
-          })
-        } else {
-          done(t('error_confirmation_save'))
-        }
-      })
+  await create('confirms', token, obj).catch(() => done(t('error_confirmation_save')))
+  sendSMS(phone, msg, (err) => {
+    if (!err.error) {
+      done(false)
     } else {
-      done(t('error_confirmation_generate'))
+      done(err)
     }
   })
 }
 
-const sendReset = (email, phone, done) => {
+const sendReset = async (email, phone, done) => {
   if (config.mainConfirm === 'email') {
-    sendEmailReset(email, (err) => {
+    await sendEmailReset(email, (err) => {
       if (!err) {
         done(false)
       } else {
@@ -78,7 +58,7 @@ const sendReset = (email, phone, done) => {
       }
     })
   } else if (config.mainConfirm === 'phone') {
-    sendPhoneConfirmation(phone, email, (err) => {
+    await sendPhoneConfirmation(phone, email, (err) => {
       if (!err) {
         done(false)
       } else {
@@ -91,31 +71,24 @@ const sendReset = (email, phone, done) => {
 export default async (data, done) => {
   const valid = await resetSchema.isValid(data.payload)
   if (valid) {
-    setLocale(data, () => {
-      userObj(data, (u) => {
-        if (u) {
-          if (u.email) {
-            dataLib.read('users', u.email, (err, userData) => {
-              if (!err && userData) {
-                sendReset(u.email, userData.phone, (err) => {
-                  if (!err.error) {
-                    done(200, { status: t('ok') })
-                  } else {
-                    done(500, { error: t('error_email') })
-                  }
-                })
-              } else {
-                done(400, { error: t('error_no_user') })
-              }
-            })
+    await setLocaleAsync(data)
+    const u = await user(data).catch(() => done(400, { error: t('error_required') }))
+    if (u.email) {
+      const userData = await read('users', u.email).catch(() => done(400, { error: t('error_no_user') }))
+      if (userData) {
+        await sendReset(u.email, userData.phone, (err) => {
+          if (!err.error) {
+            done(200, { status: t('ok') })
           } else {
-            done(400, { error: t('error_required') })
+            done(500, { error: t('error_email') })
           }
-        } else {
-          done(400, { error: t('error_required') })
-        }
-      })
-    })
+        })
+      } else {
+        done(400, { error: t('error_no_user') })
+      }
+    } else {
+      done(400, { error: t('error_required') })
+    }
   } else {
     done(400, { error: t('error_required') })
   }
