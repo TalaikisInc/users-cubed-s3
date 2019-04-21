@@ -7,6 +7,7 @@ import sendEmail from '../../lib/email'
 import uuidv4 from '../../lib/security/uuidv4'
 import { t, setLocaleAsync } from '../../lib/translations'
 import { referSchema, useSchema, registerSchema } from './schema'
+import { validate } from 'isemail'
 
 const generateToken = async (email, done) => {
   const token = uuidv4()
@@ -17,7 +18,7 @@ const generateToken = async (email, done) => {
     finalized: false
   }
 
-  await create('refers', token, obj).catch(() => done(true, 'Error saving ref.'))
+  await create('refers', token, obj).catch(() => done(true, t('error_save')))
   done(false, token)
 }
 
@@ -26,10 +27,10 @@ const sendReferEmail = (email, token, referringUser, done) => {
   const msg = t('refer_email', { baseUrl: config.baseUrl, token: token })
 
   sendEmail(email, subject, msg, (err) => {
-    if (!err.error) {
+    if (!err) {
       done(false)
     } else {
-      done(err.error)
+      done(err)
     }
   })
 }
@@ -40,10 +41,10 @@ const _generateToken = (tokenData, userData, refEmail, done) => {
       userData.referred.push(refToken)
       userData.updatedAt = Date.now()
 
-      const referringUser = `${userData.firstName} ${userData.lastName} <${userData.email}>`
+      const referringUser = `${userData.firstName} ${userData.lastName} <${tokenData.email}>`
       sendReferEmail(refEmail, refToken, referringUser, (err) => {
         if (!err) {
-          finalizeRequest('users', u.phone, 'update', done, userData)
+          finalizeRequest('users', tokenData.email, 'update', done, userData)
         } else {
           done(400, { error: t('error_refer_email') })
         }
@@ -63,13 +64,18 @@ export const refer = async (data, done) => {
   const valid = await referSchema.isValid(data.payload)
   if (valid) {
     await setLocaleAsync(data)
-    const tokenData = await tokenHeaderAsync(data).catch(() => done(403, { error: t('error_wrong_token') }))
-    const refEmail = typeof data.payload.to === 'string' && data.payload.to.indexOf('@') > -1 ? data.payload.to.trim() : false
-    if (tokenData.email && refEmail) {
-      const userData = await read('users', tokenData.email).catch(() => done(400, { error: t('error_no_user') }))
-      _generateToken(tokenData, userData, refEmail, (status, data) => {
-        done(status, data)
-      })
+    const token = await tokenHeaderAsync(data).catch(() => done(403, { error: t('error_wrong_token') }))
+    const tokenData = await read('tokens', token).catch(() => done(403, { error: t('error_cannot_read') }))
+    const validRef = validate(data.payload.to)
+    if (tokenData.email && validRef && data.payload.to !== tokenData.email) {
+      const userData = await read('users', tokenData.email).catch(() => done(400, { error: t('error_cannot_read') }))
+      if (userData) {
+        _generateToken(tokenData, userData, data.payload.to, (status, data) => {
+          done(status, data)
+        })
+      } else {
+        done(400, { error: t('error_no_user') })
+      }
     } else {
       done(400, { error: t('error_required') })
     }

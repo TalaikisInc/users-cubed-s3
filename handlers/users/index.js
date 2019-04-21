@@ -34,7 +34,7 @@ const sendEmailConfirmation = async (email, done) => {
 
   await create('confirms', token, obj).catch(() => done(t('error_confirmation_save')))
   sendEmail(email, subject, msg, (err) => {
-    if (!err.error) {
+    if (!err) {
       done(false)
     } else {
       done(err)
@@ -66,9 +66,13 @@ export const get = async (data, done) => {
   if (valid) {
     await setLocaleAsync(data)
     const tokenData = await authAsync(data).catch(() => done(403, { error: t('unauthorized') }))
-    const userData = await read('users', tokenData.email).catch(() => done(404, { error: t('error_no_user') }))
-    delete userData.password
-    done(200, userData)
+    const userData = await read('users', tokenData.email).catch(() => done(404, { error: t('error_cannot_read') }))
+    if (userData) {
+      delete userData.password
+      done(200, userData)
+    } else {
+      done(404, { error: t('error_no_user') })
+    }
   } else {
     done(400, { error: t('error_required') })
   }
@@ -137,13 +141,14 @@ export const gen = async (data, done) => {
     await setLocaleAsync(data)
     const u = await user(data).catch(() => done(400, { error: t('error_required') }))
     if (u.email && u.password && u.tosAgreement) {
-      await read('users', u.email).catch(() => done(400, { error: t('error_user_exists') }))
-      await createUser(u, (err) => {
-        if (!err) {
-          done(200, { status: t('ok') })
-        } else {
-          done(500, { error: err })
-        }
+      await read('users', u.email).catch(async () => {
+        await createUser(u, (err) => {
+          if (!err) {
+            done(200, { status: t('ok') })
+          } else {
+            done(500, { error: err })
+          }
+        })
       })
     } else {
       done(400, { error: t('error_required') })
@@ -228,8 +233,12 @@ const _update = async (data, tokenData, done) => {
       if (!err && newData) {
         await update('users', tokenData.email, newData).catch(() => done(500, { error: t('error_cannot_update') }))
         const returnUuser = await read('users', tokenData.email).catch(() => done(500, { error: t('error_cannot_read') }))
-        delete returnUuser.password
-        done(200, returnUuser)
+        if (returnUuser) {
+          delete returnUuser.password
+          done(200, returnUuser)
+        } else {
+          done(500, { error: t('error_cannot_read') })
+        }
       } else {
         done(500, { error: t('error_unknown') })
       }
@@ -257,18 +266,25 @@ export const destroyUser = async (data, done) => {
   if (valid) {
     await setLocaleAsync(data)
     const tokenData = await authAsync(data).catch(() => done(403, { error: t('unauthorized') }))
-    const userData = await read('users', tokenData.email).catch(() => done(400, { error: t('error_no_user') }))
-    const refs = typeof userData.referred === 'object' && Array.isArray(userData.referred) ? userData.referred : []
-    // delete any associated tables
-    // const orders = typeof userData.orders === 'object' && Array.isArray(userData.orders) ? userData.orders : []
-    await destroy('users', tokenData.email).catch(() => done(500, { error: t('error_user_delete') }))
-    joinDelete('refers', refs, (err) => {
-      if (err) {
-        error(err)
-      } else {
-        done(200, { status: t('ok') })
-      }
-    })
+    const userData = await read('users', tokenData.email).catch(() => done(400, { error: t('error_cannot_read') }))
+    if (userData) {
+      const refs = typeof userData.referred === 'object' && Array.isArray(userData.referred) ? userData.referred : []
+      // delete any associated tables
+      // const orders = typeof userData.orders === 'object' && Array.isArray(userData.orders) ? userData.orders : []
+      await destroy('users', tokenData.email).catch((e) => {
+        done(500, { error: t('error_user_delete') })
+      })
+
+      joinDelete('refers', refs, (err) => {
+        if (err) {
+          error(err)
+        } else {
+          done(200, { status: t('ok') })
+        }
+      })
+    } else {
+      done(400, { error: t('error_no_user') })
+    }
   } else {
     done(400, { error: t('error_required') })
   }

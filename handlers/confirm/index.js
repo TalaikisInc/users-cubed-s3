@@ -13,7 +13,7 @@ const sendNewPassword = (email, password, done) => {
   const msg = `${t('email_password')} <a href='${config.baseUrl}'>${config.company}</a>:
     <h4>${password}</h4>`
   sendEmail(email, subject, msg, (err) => {
-    if (!err.error) {
+    if (!err) {
       done(false)
     } else {
       done(err)

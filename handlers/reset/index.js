@@ -10,7 +10,7 @@ import { resetSchema } from './schema'
 const sendEmailReset = async (email, done) => {
   const token = await randomIDAsync(32).catch(() => done(t('error_confirmation_generate')))
   const subject = t('reset_email', { company: config.company })
-  const msg = t('reset_email_text', { baseUrl: config.baseUrl, cod: token })
+  const msg = t('reset_email_text', { baseUrl: config.baseUrl, code: token })
   const obj = {
     email,
     type: 'reset',
@@ -20,7 +20,7 @@ const sendEmailReset = async (email, done) => {
 
   await create('confirms', token, obj).catch(() => done(t('error_confirmation_save')))
   sendEmail(email, subject, msg, (err) => {
-    if (!err.error) {
+    if (!err) {
       done(false)
     } else {
       done(err)

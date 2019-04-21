@@ -43,16 +43,17 @@ export const gen = async (data, done) => {
     await setLocaleAsync(data)
     const u = await user(data).catch(() => done(400, { error: t('error_required') }))
     if ((u.email && u.password) || (u.phone && u.password)) {
-      const userData = await read('users', u.email).catch((e) => {
-        done(400, { error: t('error_no_user') })
-      })
-
-      if (userData.confirmed.email || userData.confirmed.phone) {
-        await _hash(u, userData, (status, out) => {
-          done(status, out)
-        })
+      const userData = await read('users', u.email).catch((e) => done(400, { error: t('error_cannot_read') }))
+      if (userData) {
+        if (userData.confirmed.email || userData.confirmed.phone) {
+          await _hash(u, userData, (status, out) => {
+            done(status, out)
+          })
+        } else {
+          done(400, { error: t('error_confirmed') })
+        }
       } else {
-        done(400, { error: t('error_confirmed') })
+        done(400, { error: t('error_no_user') })
       }
     } else {
       done(400, { error: t('error_required') })
