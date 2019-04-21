@@ -34,8 +34,8 @@ const sendReferEmail = (email, token, referringUser, done) => {
   })
 }
 
-const _generateToken = (u, userData, refEmail, done) => {
-  generateToken(u.email, (err, refToken) => {
+const _generateToken = (tokenData, userData, refEmail, done) => {
+  generateToken(tokenData.email, (err, refToken) => {
     if (!err) {
       userData.referred.push(refToken)
       userData.updatedAt = Date.now()
@@ -63,12 +63,11 @@ export const refer = async (data, done) => {
   const valid = await referSchema.isValid(data.payload)
   if (valid) {
     await setLocaleAsync(data)
-    await tokenHeaderAsync(data).catch(() => done(403, { error: t('error_wrong_token') }))
-    const u = await user(data).catch(() => done(400, { error: t('error_required') }))
+    const tokenData = await tokenHeaderAsync(data).catch(() => done(403, { error: t('error_wrong_token') }))
     const refEmail = typeof data.payload.to === 'string' && data.payload.to.indexOf('@') > -1 ? data.payload.to.trim() : false
-    if (u.email && refEmail) {
-      const userData = await read('users', u.email).catch(() => done(400, { error: t('error_no_user') }))
-      _generateToken(u, userData, refEmail, (status, data) => {
+    if (tokenData.email && refEmail) {
+      const userData = await read('users', tokenData.email).catch(() => done(400, { error: t('error_no_user') }))
+      _generateToken(tokenData, userData, refEmail, (status, data) => {
         done(status, data)
       })
     } else {

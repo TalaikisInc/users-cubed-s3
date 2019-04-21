@@ -2,7 +2,6 @@ import { object, string } from 'yup'
 
 export const referSchema = object().shape({
   to: string().required().email(),
-  email: string().required().email(),
   key: string().required(),
   action: string().required().oneOf(['REFER_REFER']),
   locale: string().required().oneOf(['en', 'fr'])
