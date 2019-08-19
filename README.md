@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://talaikis.com/">
+    <img alt="Talaikis Ltd." src="https://github.com/TalaikisInc/talaikis.com_react/blob/master/media/logo.png" width="228">
+  </a>
+</p>
+
 # Users Cubed S3
 
 This is full user management service API. as [original version](https://github.com/TalaikisInc/users-cubed) is easily extensible, this version is made for S3 instead of local hosts' json store.
@@ -14,14 +20,14 @@ This is full user management service API. as [original version](https://github.c
 ## TODO
 
 * Social login
-* Finish rate limiting
 * Finish phone confirm (+frontend part)
-* Move into async/await
+* Fisnish async/await
 * Response caching
 * Penetration testing
 * Tests
 * Cleanup for old data in S3
-* Move to Lambda (?)
+* Move to Lambda
+* * add async queues for requests
 
 ## Install
 
