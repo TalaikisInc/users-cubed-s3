@@ -25,6 +25,7 @@
     "@babel/register": "^7.7.0",
     "@commitlint/config-conventional": "^8.2.0",
     "chai": "^4.2.0",
+    "chai-http": "^4.3.0",
     "commitlint": "^8.2.0",
     "cross-env": "^6.0.3",
     "eslint": "^6.6.0",
@@ -62,15 +63,12 @@
   "husky": {
     "hooks": {
       "commit-msg": "commitlint -E HUSKY_GIT_PARAMS",
-      "pre-commit": "lint-staged",
-      "pre-push": "npm test"
+      "pre-commit": "lint-staged"
     }
   },
   "lint-staged": {
     "src/**/*.{js,jsx,ts,tsx,json,css}": [
       "git-precommit-checks",
-      "eslint --fix src/",
-      "npm run build",
       "git add"
     ]
   },
