@@ -1,0 +1,19 @@
+{
+    "prod": {
+        "awscloudformation": {
+            "AuthRoleName": "users-cubed-s3-prod-20191119172447-authRole",
+            "UnauthRoleArn": "arn:aws:iam::210617604048:role/users-cubed-s3-prod-20191119172447-unauthRole",
+            "AuthRoleArn": "arn:aws:iam::210617604048:role/users-cubed-s3-prod-20191119172447-authRole",
+            "Region": "us-east-1",
+            "DeploymentBucketName": "users-cubed-s3-prod-20191119172447-deployment",
+            "UnauthRoleName": "users-cubed-s3-prod-20191119172447-unauthRole",
+            "StackName": "users-cubed-s3-prod-20191119172447",
+            "StackId": "arn:aws:cloudformation:us-east-1:210617604048:stack/users-cubed-s3-prod-20191119172447/b8ce6eb0-0ae0-11ea-b883-1253d15d20e2"
+        },
+        "categories": {
+            "auth": {
+                "userscubeds38fc18af9": {}
+            }
+        }
+    }
+}

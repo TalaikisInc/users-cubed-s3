@@ -1,0 +1,15 @@
+{
+	"auth": {
+		"userscubeds38fc18af9": {
+			"service": "Cognito",
+			"providerPlugin": "awscloudformation",
+			"dependsOn": []
+		}
+	},
+	"storage": {
+		"s38919e1ff": {
+			"service": "S3",
+			"providerPlugin": "awscloudformation"
+		}
+	}
+}

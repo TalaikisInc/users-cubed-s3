@@ -1,0 +1,106 @@
+{
+  "name": "users-cubed",
+  "version": "1.0.0",
+  "description": "",
+  "main": "start.js",
+  "scripts": {
+    "test": "mocha tests/",
+    "lint": "eslint --debug .",
+    "lint:write": "eslint --debug . --fix",
+    "start": "cross-env NODE_ENV=production node start.js",
+    "debug": "cross-env NODE_DEBUG=APP node start.js",
+    "upgrade:list": "ncu",
+    "upgrade:install": "ncu -u"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TalaikisInc/users-cubed.git"
+  },
+  "author": "Tadas Talaikis <info@talaikis.com>",
+  "license": "GPL-v3",
+  "devDependencies": {
+    "@babel/core": "^7.7.2",
+    "@babel/polyfill": "^7.7.0",
+    "@babel/preset-env": "^7.7.1",
+    "@babel/register": "^7.7.0",
+    "@commitlint/config-conventional": "^8.2.0",
+    "chai": "^4.2.0",
+    "commitlint": "^8.2.0",
+    "cross-env": "^6.0.3",
+    "eslint": "^6.6.0",
+    "eslint-config-standard": "^14.1.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-node": "^10.0.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-security": "^1.4.0",
+    "eslint-plugin-standard": "^4.0.1",
+    "git-precommit-checks": "^3.0.0",
+    "husky": "^3.1.0",
+    "lint-staged": "^9.4.3",
+    "mocha": "^6.2.2",
+    "npm-check-updates": "^3.2.1",
+    "supertest": "^4.0.2"
+  },
+  "dependencies": {
+    "async-optics": "^1.1.0",
+    "aws-amplify": "^2.1.0",
+    "dotenv": "^8.2.0",
+    "eslint-plugin-perf-standard": "^1.0.3",
+    "faker": "^4.1.0",
+    "frenchkiss": "0.2.1",
+    "graphql": "^14.5.8",
+    "isemail": "^3.2.0",
+    "legit": "^1.0.7",
+    "morgan": "^1.9.1",
+    "passport": "^0.4.0",
+    "passport-facebook": "^3.0.0",
+    "passport-google-oauth2": "^0.2.0",
+    "passport-twitter": "^1.0.4",
+    "rotating-file-stream": "^1.4.6",
+    "yup": "^0.27.0"
+  },
+  "husky": {
+    "hooks": {
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS",
+      "pre-commit": "lint-staged",
+      "pre-push": "npm test"
+    }
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx,ts,tsx,json,css}": [
+      "git-precommit-checks",
+      "eslint --fix src/",
+      "npm run build",
+      "git add"
+    ]
+  },
+  "git-precommit-checks": {
+    "rules": [
+      {
+        "filter": "\\.js$",
+        "nonBlocking": "true",
+        "message": "You’ve got leftover `console.log`",
+        "regex": "console\\.log"
+      },
+      {
+        "message": "You’ve got leftover conflict markers",
+        "regex": "/^[<>|=]{4,}/m"
+      },
+      {
+        "message": "You have unfinished work",
+        "nonBlocking": "true",
+        "regex": "(?:FIXME|TODO)"
+      }
+    ]
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  },
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  }
+}

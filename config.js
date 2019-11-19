@@ -9,7 +9,7 @@ strictEqual(typeof process.env.MAILGUN_DOMAIN, 'string', 'You need MAILGUN_DOMAI
 strictEqual(typeof process.env.MAILGUN_KEY, 'string', 'You need MAILGUN_KEY!')
 
 export default {
-  port: 3000,
+  port: 3001,
   company: 'Talaikis Ltd.',
   hashingSecret: process.env.HASH_SECRET,
   logging: true,

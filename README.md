@@ -21,13 +21,13 @@ This is full user management service API. as [original version](https://github.c
 
 * Social login
 * Finish phone confirm (+frontend part)
-* Fisnish async/await
+* Finish async/await
 * Response caching
 * Penetration testing
 * Tests
 * Cleanup for old data in S3
 * Move to Lambda
-* * add async queues for requests
+* add async queues for requests
 
 ## Install
 
@@ -51,7 +51,7 @@ npm run start
 
 ## Routes
 
-There is only one '/' route that accepts only POST requests with defined actions. List of actions is listed on Postam collection.
+There is only one '/' route that accepts only POST requests with defined actions. List of actions is listed on Postman collection.
 
 ## Tests
 

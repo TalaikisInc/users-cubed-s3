@@ -1,0 +1,17 @@
+{
+    "projectName": "users-cubed-s3",
+    "version": "2.0",
+    "frontend": "javascript",
+    "javascript": {
+        "framework": "none",
+        "config": {
+            "SourceDir": "lib",
+            "DistributionDir": "dist",
+            "BuildCommand": "npm.cmd run-script build",
+            "StartCommand": "npm.cmd run-script start"
+        }
+    },
+    "providers": [
+        "awscloudformation"
+    ]
+}
