@@ -38,7 +38,7 @@
     "git-precommit-checks": "^3.0.0",
     "husky": "^3.1.0",
     "lint-staged": "^9.4.3",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.19",
     "mocha": "^6.2.2",
     "npm-check-updates": "^3.2.1",
     "supertest": "^4.0.2"
